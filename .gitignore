@@ -1,3 +1,9 @@
+# Misc
+build/
+managed_components/
+*.lock
+sdkconfig*
+
 # Prerequisites
 *.d
 
