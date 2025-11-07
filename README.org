@@ -1,33 +1,52 @@
-#+title: Title (WIP)
+#+title: ESP32 CYD OBD2
 #+author: 8dcc
 #+startup: showeverything
 
-#+begin_comment
-*TODO*: Change project-name and title
-*TODO*: Change output.out in Makefile
-#+end_comment
+*Visualize OBD2 information about your car in an ESP32 CYD.*
 
-I am a short description.
+This project is meant to run on an [[https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display][ESP32 Cheap Yellow Display]] (CYD) board, which
+can be bought on AliExpress for about 10 dollars.
 
-This project was generated from a template, and the initial changes have not
-been pushed yet.
+* Dependencies
 
-* Building
-
-Clone the repository and build the project using =make=.
+This project has some external dependencies that must be installed in order for
+it to be built and flashed. Namely, the Espressif [[https://idf.espressif.com/][ESP-IDF]] SDK has to be cloned
+and installed.
 
 #+begin_src bash
-git clone https://github.com/8dcc/project-name
-cd project-name
-make
+git clone --depth=1 https://github.com/espressif/esp-idf
+cd esp-idf
+
+./install.sh
 # ...
 #+end_src
 
-* Usage
-
-For more information about the program, run it with the =--help= argument.
+Once the ESP-IDF installation is finished, it can be loaded into the shell.
 
 #+begin_src bash
-./project-name.out --help
+. ./export.sh
+# ...
+
+# (Espressif IDF now loaded in the current shell)
+#+end_src
+
+* Building and flashing
+
+To build the project, simply clone the repository and build it using the =idf.py=
+script. Make sure the =export.sh= script has been loaded/exported before this
+step, as shown in the previous section.
+
+#+begin_src bash
+git clone https://github.com/8dcc/esp32-cyd-obd2
+cd esp32-cyd-obd2
+idf.py build
+# ...
+#+end_src
+
+Then, once the project is built, you can connect the board's MicroUSB port to
+your computer and flash it with the same =idf.py= script.
+
+#+begin_src bash
+idf.py flash
 # ...
 #+end_src
