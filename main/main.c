@@ -35,6 +35,32 @@
 /*----------------------------------------------------------------------------*/
 
 /*
+ * Convert RGB888 (24-bit) color to RGB565 (16-bit) format.
+ *
+ * RGB888 format:
+ *   - Red:   bits [23..16]
+ *   - Green: bits [15..8]
+ *   - Blue:  bits [7..0]
+ *
+ * RGB565 format:
+ *   - Red:   bits [15..11]
+ *   - Green: bits [10..5]
+ *   - Blue:  bits [4..0]
+ */
+static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
+    const uint8_t r = (rgb888 >> 16) & 0xFF;
+    const uint8_t g = (rgb888 >> 8) & 0xFF;
+    const uint8_t b = rgb888 & 0xFF;
+
+    /* Scale [00..FF] range to [00..1F] or [00..3F] */
+    const uint16_t r5 = (r * 0x1F / 0xFF) & 0x1F;
+    const uint16_t g6 = (g * 0x3F / 0xFF) & 0x3F;
+    const uint16_t b5 = (b * 0x1F / 0xFF) & 0x1F;
+
+    return (r5 << 11) | (g6 << 5) | b5;
+}
+
+/*
  * Draw a line from (x0, y0) to (x1, y1) using Bresenham's line algorithm.
  *
  * Bresenham's algorithm is an efficient method for rasterizing lines that uses
@@ -126,7 +152,7 @@ static void draw_sine_waves(esp_lcd_panel_handle_t panel_handle) {
                       center_y + prev_y_offset,
                       x,
                       center_y + cur_y_offset,
-                      0x07FF);
+                      rgb888_to_rgb565(0xFFFFFF));
 
             /*
              * Also draw inverted angle, essentially shifting the phase 180
@@ -137,7 +163,7 @@ static void draw_sine_waves(esp_lcd_panel_handle_t panel_handle) {
                       center_y - prev_y_offset,
                       x,
                       center_y - cur_y_offset,
-                      0x0F7F);
+                      rgb888_to_rgb565(0xFF0000));
         }
 
         prev_x        = x;
@@ -155,13 +181,13 @@ static void draw_sine_waves(esp_lcd_panel_handle_t panel_handle) {
                       center_y + prev_y_offset,
                       x,
                       center_y + cur_y_offset,
-                      0x0FF7);
+                      rgb888_to_rgb565(0x00FF00));
             draw_line(panel_handle,
                       prev_x,
                       center_y - prev_y_offset,
                       x,
                       center_y - cur_y_offset,
-                      0x7FFF);
+                      rgb888_to_rgb565(0x0000FF));
         }
 
         prev_x        = x;
