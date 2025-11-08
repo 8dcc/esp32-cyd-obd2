@@ -245,7 +245,7 @@ void app_main(void) {
     esp_lcd_panel_handle_t panel_handle     = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = LCD_RST,
-        .rgb_endian     = LCD_RGB_ENDIAN_BGR,
+        .rgb_endian     = LCD_RGB_ENDIAN_RGB,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(
