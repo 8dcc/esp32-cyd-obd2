@@ -141,7 +141,7 @@ static void draw_sine_waves(esp_lcd_panel_handle_t panel_handle) {
          * The angle in radians is the current X percentage in the screen
          * divided by the value of the right-most pixel in radians.
          */
-        const float angle = (float)x / LCD_V_RES * max_angular_range;
+        const float angle = (float)x / LCD_H_RES * max_angular_range;
 
         /* Current Y coordinate relative to the middle */
         const int cur_y_offset = (int)(amplitude * sin(angle));
@@ -172,7 +172,7 @@ static void draw_sine_waves(esp_lcd_panel_handle_t panel_handle) {
 
     /* Draw the normal and inverted-phase cosine waves */
     for (int x = 0; x < LCD_H_RES; x++) {
-        const float angle      = (float)x / LCD_V_RES * max_angular_range;
+        const float angle      = (float)x / LCD_H_RES * max_angular_range;
         const int cur_y_offset = (int)(amplitude * cos(angle));
 
         if (x > 1) {
