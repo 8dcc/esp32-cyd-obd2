@@ -188,10 +188,10 @@ void draw_line(const RenderCtx* ctx,
     const uint16_t rgb565_color = rgb888_to_rgb565(color);
 
     /* Clamp the coordinates, to ensure they are within screen bounds */
-    x0 = CLAMP(x0, 0, ctx->width);
-    y0 = CLAMP(y0, 0, ctx->height);
-    x1 = CLAMP(x1, 0, ctx->width);
-    y1 = CLAMP(y1, 0, ctx->height);
+    x0 = CLAMP(x0, 0, ctx->width - 1);
+    y0 = CLAMP(y0, 0, ctx->height - 1);
+    x1 = CLAMP(x1, 0, ctx->width - 1);
+    y1 = CLAMP(y1, 0, ctx->height - 1);
 
     /* Calculate absolute differences and step directions */
     const int dx = abs(x1 - x0);       /* Horizontal distance */
