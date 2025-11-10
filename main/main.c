@@ -143,4 +143,10 @@ void app_main(void) {
      * example visualization.
      */
     draw_sine_waves(&render_ctx, LCD_WIDTH, LCD_HEIGHT, amplitude, frequency);
+
+    /*
+     * Flush the framebuffer to the LCD, since the drawing functions operate on
+     * an off-screen framebuffer.
+     */
+    render_flush(&render_ctx);
 }

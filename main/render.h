@@ -29,6 +29,9 @@ typedef struct RenderCtx {
 
     /* LCD panel handle used to call 'esp_lcd_panel_*' functions */
     esp_lcd_panel_handle_t lcd_panel;
+
+    /* Framebuffer for off-screen rendering (RGB565 format) */
+    uint16_t* framebuffer;
 } RenderCtx;
 
 /*----------------------------------------------------------------------------*/
@@ -45,19 +48,25 @@ typedef struct RenderCtx {
 void render_init(RenderCtx* ctx, size_t width, size_t height);
 
 /*
- * Clear the LCD associated to the specified render context, resetting all
- * pixels to black.
+ * Clear the framebuffer associated to the specified render context, resetting
+ * all pixels to black.
+ *
+ * This does not update the physical display; the caller should use
+ * 'render_flush' to transfer the framebuffer to the LCD.
  */
 void render_clear(const RenderCtx* ctx);
 
 /*
  * Draw a line of the specified RGB888 color from (x0, y0) to (x1, y1) in the
- * LCD associated to the specified render context.
+ * framebuffer associated to the specified render context.
  *
  * The line is drawn using Bresenham's line algorithm, which is an efficient
  * method for rasterizing lines that uses only integer arithmetic. It determines
  * which pixels should be selected to form a close approximation to a straight
  * line between two points.
+ *
+ * This does not update the physical display; the caller should use
+ * 'render_flush' to transfer the framebuffer to the LCD.
  */
 void draw_line(const RenderCtx* ctx,
                int x0,
@@ -65,5 +74,13 @@ void draw_line(const RenderCtx* ctx,
                int x1,
                int y1,
                uint32_t color);
+
+/*
+ * Flush the framebuffer to the physical LCD display.
+ *
+ * Transfers the entire framebuffer to the LCD in a single DMA transaction,
+ * which is much faster than individual pixel updates.
+ */
+void render_flush(const RenderCtx* ctx);
 
 #endif /* RENDER_H_ */
