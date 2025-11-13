@@ -43,7 +43,7 @@ typedef struct RenderCtx {
  * This function will:
  *   1. Initialize the LCD backlight GPIO.
  *   2. Initialize the SPI bus for communicating with the LCD.
- *   2. Initialize the ESP LCD panel handle.
+ *   3. Initialize the ESP LCD panel handle.
  */
 void render_init(RenderCtx* ctx, size_t width, size_t height);
 
@@ -88,5 +88,19 @@ void render_draw_line(const RenderCtx* ctx,
  * which is much faster than individual pixel updates.
  */
 void render_flush(const RenderCtx* ctx);
+
+/*
+ * Get the width of the specified render context.
+ */
+static inline int render_get_width(const RenderCtx* ctx) {
+    return ctx->width;
+}
+
+/*
+ * Get the height of the specified render context.
+ */
+static inline int render_get_height(const RenderCtx* ctx) {
+    return ctx->height;
+}
 
 #endif /* RENDER_H_ */

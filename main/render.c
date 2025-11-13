@@ -182,6 +182,8 @@ void render_destroy(RenderCtx* ctx) {
         free(ctx->framebuffer);
         ctx->framebuffer = NULL;
     }
+
+    /* TODO: Call ESP-IDF functions for freeing LCD and SPI resources */
 }
 
 void render_clear(const RenderCtx* ctx) {
