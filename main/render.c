@@ -177,6 +177,13 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
     memset(ctx->framebuffer, 0x00, fb_size);
 }
 
+void render_destroy(RenderCtx* ctx) {
+    if (ctx->framebuffer != NULL) {
+        free(ctx->framebuffer);
+        ctx->framebuffer = NULL;
+    }
+}
+
 void render_clear(const RenderCtx* ctx) {
     /* Clear the framebuffer to black. This is a fast in-memory operation. */
     memset(ctx->framebuffer, 0x00, ctx->width * ctx->height * sizeof(uint16_t));

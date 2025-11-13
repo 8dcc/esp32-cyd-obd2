@@ -48,6 +48,12 @@ typedef struct RenderCtx {
 void render_init(RenderCtx* ctx, size_t width, size_t height);
 
 /*
+ * Deinitialize the specified render context, freeing all its necessary
+ * members. This function does not free the 'RenderCtx' structure itself.
+ */
+void render_destroy(RenderCtx* ctx);
+
+/*
  * Clear the framebuffer associated to the specified render context, resetting
  * all pixels to black.
  *

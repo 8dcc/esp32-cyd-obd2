@@ -149,4 +149,7 @@ void app_main(void) {
      * an off-screen framebuffer.
      */
     render_flush(&render_ctx);
+
+    /* Free the render context */
+    render_destroy(&render_ctx);
 }
