@@ -182,12 +182,12 @@ void render_clear(const RenderCtx* ctx) {
     memset(ctx->framebuffer, 0x00, ctx->width * ctx->height * sizeof(uint16_t));
 }
 
-void draw_line(const RenderCtx* ctx,
-               int x0,
-               int y0,
-               int x1,
-               int y1,
-               uint32_t color) {
+void render_draw_line(const RenderCtx* ctx,
+                      int x0,
+                      int y0,
+                      int x1,
+                      int y1,
+                      uint32_t color) {
     /* Convert RGB888 to RGB565 color, used by the display */
     const uint16_t rgb565_color = rgb888_to_rgb565(color);
 

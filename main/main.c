@@ -74,23 +74,23 @@ static void draw_sine_waves(const RenderCtx* render_ctx,
         const int cur_y_offset = (int)(amplitude * sin(angle));
 
         if (x > 1) {
-            draw_line(render_ctx,
-                      prev_x,
-                      center_y + prev_y_offset,
-                      x,
-                      center_y + cur_y_offset,
-                      0xFFFFFF);
+            render_draw_line(render_ctx,
+                             prev_x,
+                             center_y + prev_y_offset,
+                             x,
+                             center_y + cur_y_offset,
+                             0xFFFFFF);
 
             /*
              * Also draw inverted angle, essentially shifting the phase 180
              * degrees (i.e. PI radians).
              */
-            draw_line(render_ctx,
-                      prev_x,
-                      center_y - prev_y_offset,
-                      x,
-                      center_y - cur_y_offset,
-                      0xFF0000);
+            render_draw_line(render_ctx,
+                             prev_x,
+                             center_y - prev_y_offset,
+                             x,
+                             center_y - cur_y_offset,
+                             0xFF0000);
         }
 
         prev_x        = x;
@@ -103,18 +103,18 @@ static void draw_sine_waves(const RenderCtx* render_ctx,
         const int cur_y_offset = (int)(amplitude * cos(angle));
 
         if (x > 1) {
-            draw_line(render_ctx,
-                      prev_x,
-                      center_y + prev_y_offset,
-                      x,
-                      center_y + cur_y_offset,
-                      0x00FF00);
-            draw_line(render_ctx,
-                      prev_x,
-                      center_y - prev_y_offset,
-                      x,
-                      center_y - cur_y_offset,
-                      0x0000FF);
+            render_draw_line(render_ctx,
+                             prev_x,
+                             center_y + prev_y_offset,
+                             x,
+                             center_y + cur_y_offset,
+                             0x00FF00);
+            render_draw_line(render_ctx,
+                             prev_x,
+                             center_y - prev_y_offset,
+                             x,
+                             center_y - cur_y_offset,
+                             0x0000FF);
         }
 
         prev_x        = x;

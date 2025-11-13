@@ -68,12 +68,12 @@ void render_clear(const RenderCtx* ctx);
  * This does not update the physical display; the caller should use
  * 'render_flush' to transfer the framebuffer to the LCD.
  */
-void draw_line(const RenderCtx* ctx,
-               int x0,
-               int y0,
-               int x1,
-               int y1,
-               uint32_t color);
+void render_draw_line(const RenderCtx* ctx,
+                      int x0,
+                      int y0,
+                      int x1,
+                      int y1,
+                      uint32_t color);
 
 /*
  * Flush the framebuffer to the physical LCD display.
