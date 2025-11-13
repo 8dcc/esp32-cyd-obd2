@@ -1,8 +1,9 @@
 # Misc
+.cache/
 build/
 managed_components/
 *.lock
-sdkconfig*
+sdkconfig.*
 
 # Prerequisites
 *.d
