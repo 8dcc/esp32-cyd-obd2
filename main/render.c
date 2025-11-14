@@ -53,17 +53,8 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * Convert RGB888 (24-bit) color to RGB565 (16-bit) format.
- *
- * RGB888 format:
- *   - Red:   bits [23..16]
- *   - Green: bits [15..8]
- *   - Blue:  bits [7..0]
- *
- * RGB565 format:
- *   - Red:   bits [15..11]
- *   - Green: bits [10..5]
- *   - Blue:  bits [4..0]
+ * Convert RGB888 (24-bit) color to RGB565 (16-bit) format, as expected by the
+ * ILI9341 chip.
  */
 static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
     const uint8_t r = (rgb888 >> 16) & 0xFF;
@@ -71,11 +62,12 @@ static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
     const uint8_t b = rgb888 & 0xFF;
 
     /* Scale [00..FF] range to [00..1F] or [00..3F] */
-    const uint16_t r5 = (r * 0x1F / 0xFF) & 0x1F;
-    const uint16_t g6 = (g * 0x3F / 0xFF) & 0x3F;
-    const uint16_t b5 = (b * 0x1F / 0xFF) & 0x1F;
+    const uint8_t r5 = (r * 0x1F / 0xFF) & 0x1F;
+    const uint8_t g6 = (g * 0x3F / 0xFF) & 0x3F;
+    const uint8_t b5 = (b * 0x1F / 0xFF) & 0x1F;
 
-    return (r5 << 11) | (g6 << 5) | b5;
+    const uint16_t little_endian = (b5 << 11) | (g6 << 5) | r5;
+    return (little_endian >> 8) | (little_endian << 8);
 }
 
 /*----------------------------------------------------------------------------*/
