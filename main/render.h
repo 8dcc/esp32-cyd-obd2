@@ -24,15 +24,14 @@
 #include "freertos/FreeRTOS.h" /* SemaphoreHandle_t */
 #include "esp_lcd_panel_ops.h" /* esp_lcd_panel_handle_t */
 
-typedef struct RenderCtx {
-    /* Resolution of the LCD */
-    size_t width, height;
+#include "framebuffer.h"
 
+typedef struct RenderCtx {
     /* LCD panel handle used to call 'esp_lcd_panel_*' functions */
     esp_lcd_panel_handle_t lcd_panel;
 
-    /* Framebuffer for off-screen rendering (RGB565 format) */
-    uint16_t* framebuffer;
+    /* Framebuffer for off-screen rendering */
+    Framebuffer framebuffer;
 
     /*
      * Binary semaphore used to notify 'render_flush' that the LCD drawing is
@@ -102,14 +101,14 @@ void render_flush(const RenderCtx* ctx);
  * Get the width of the specified render context.
  */
 static inline int render_get_width(const RenderCtx* ctx) {
-    return ctx->width;
+    return ctx->framebuffer.width;
 }
 
 /*
  * Get the height of the specified render context.
  */
 static inline int render_get_height(const RenderCtx* ctx) {
-    return ctx->height;
+    return ctx->framebuffer.height;
 }
 
 #endif /* RENDER_H_ */

@@ -32,12 +32,6 @@
 #include "esp_heap_caps.h" /* MALLOC_CAP_DMA, MALLOC_CAP_8BIT */
 
 /*
- * Clamp the specified number N to a minimum and maximum value.
- */
-#define CLAMP(N, MIN, MAX)                                                     \
-    (((MIN) >= (N)) ? (MIN) : ((N) >= (MAX)) ? (MAX) : (N))
-
-/*
  * ESP32-CYD (Cheap Yellow Display) hardware pin definitions.
  * This board uses an ILI9341 LCD controller connected via SPI.
  */
@@ -51,24 +45,6 @@
 #define LCD_BL        21        /* Backlight control pin */
 
 /*----------------------------------------------------------------------------*/
-
-/*
- * Convert RGB888 (24-bit) color to RGB565 (16-bit) format, as expected by the
- * ILI9341 chip.
- */
-static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
-    const uint8_t r = (rgb888 >> 16) & 0xFF;
-    const uint8_t g = (rgb888 >> 8) & 0xFF;
-    const uint8_t b = rgb888 & 0xFF;
-
-    /* Scale [00..FF] range to [00..1F] or [00..3F] */
-    const uint8_t r5 = (r * 0x1F / 0xFF) & 0x1F;
-    const uint8_t g6 = (g * 0x3F / 0xFF) & 0x3F;
-    const uint8_t b5 = (b * 0x1F / 0xFF) & 0x1F;
-
-    const uint16_t little_endian = (b5 << 11) | (g6 << 5) | r5;
-    return (little_endian >> 8) | (little_endian << 8);
-}
 
 /*
  * Callback used for detecting when the DMA transfer to the LCD screen is done.
@@ -110,8 +86,6 @@ static void draw_bitmap_synchronously(const RenderCtx* ctx,
 /*----------------------------------------------------------------------------*/
 
 void render_init(RenderCtx* ctx, size_t width, size_t height) {
-    ctx->width                = width;
-    ctx->height               = height;
     ctx->lcd_panel            = NULL;
     ctx->flush_done_semaphore = xSemaphoreCreateBinary();
 
@@ -132,7 +106,7 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
         .sclk_io_num     = LCD_SCLK,
         .quadwp_io_num   = -1,
         .quadhd_io_num   = -1,
-        .max_transfer_sz = ctx->width * ctx->height * sizeof(uint16_t),
+        .max_transfer_sz = width * height * sizeof(uint16_t),
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
@@ -187,40 +161,18 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
 
     ctx->lcd_panel = panel_handle;
 
-    /*
-     * Allocate framebuffer for off-screen rendering in DMA-capable memory.
-     * This allows all drawing operations to occur in RAM, then the entire
-     * frame can be transferred to the LCD in a single DMA transaction.
-     */
-    const size_t fb_size = ctx->width * ctx->height * sizeof(uint16_t);
-    ctx->framebuffer =
-      heap_caps_malloc(fb_size, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-
-    if (ctx->framebuffer == NULL) {
-        fprintf(stderr,
-                "Failed to allocate %zux%zu framebuffer (%zu bytes)\n",
-                ctx->width,
-                ctx->height,
-                fb_size);
-        abort();
-    }
-
-    /* Initialize framebuffer to black */
-    memset(ctx->framebuffer, 0x00, fb_size);
+    /* Initialize the framebuffer */
+    framebuffer_init(&ctx->framebuffer, width, height);
 }
 
 void render_destroy(RenderCtx* ctx) {
-    if (ctx->framebuffer != NULL) {
-        free(ctx->framebuffer);
-        ctx->framebuffer = NULL;
-    }
+    framebuffer_destroy(&ctx->framebuffer);
 
     /* TODO: Call ESP-IDF functions for freeing LCD and SPI resources */
 }
 
 void render_clear(const RenderCtx* ctx) {
-    /* Clear the framebuffer to black. This is a fast in-memory operation. */
-    memset(ctx->framebuffer, 0x00, ctx->width * ctx->height * sizeof(uint16_t));
+    framebuffer_clear(&ctx->framebuffer);
 }
 
 void render_draw_line(const RenderCtx* ctx,
@@ -229,45 +181,7 @@ void render_draw_line(const RenderCtx* ctx,
                       int x1,
                       int y1,
                       uint32_t color) {
-    /* Convert RGB888 to RGB565 color, used by the display */
-    const uint16_t rgb565_color = rgb888_to_rgb565(color);
-
-    /* Clamp the coordinates, to ensure they are within screen bounds */
-    x0 = CLAMP(x0, 0, ctx->width - 1);
-    y0 = CLAMP(y0, 0, ctx->height - 1);
-    x1 = CLAMP(x1, 0, ctx->width - 1);
-    y1 = CLAMP(y1, 0, ctx->height - 1);
-
-    /* Calculate absolute differences and step directions */
-    const int dx = abs(x1 - x0);       /* Horizontal distance */
-    const int dy = abs(y1 - y0);       /* Vertical distance */
-    const int sx = (x0 < x1) ? 1 : -1; /* Step direction for X */
-    const int sy = (y0 < y1) ? 1 : -1; /* Step direction for Y */
-    int err      = dx - dy;            /* Initial error term */
-
-    for (;;) {
-        /* Write pixel directly to framebuffer */
-        ctx->framebuffer[ctx->width * y0 + x0] = rgb565_color;
-
-        /* Check if we've reached the endpoint */
-        if (x0 == x1 && y0 == y1)
-            break;
-
-        /*
-         * Calculate error adjustment and step to next pixel.
-         * The error term determines whether to step horizontally,
-         * vertically, or diagonally.
-         */
-        int e2 = 2 * err;
-        if (e2 > -dy) {
-            err -= dy;
-            x0 += sx; /* Step horizontally */
-        }
-        if (e2 < dx) {
-            err += dx;
-            y0 += sy; /* Step vertically */
-        }
-    }
+    framebuffer_draw_line(&ctx->framebuffer, x0, y0, x1, y1, color);
 }
 
 void render_flush(const RenderCtx* ctx) {
@@ -275,7 +189,7 @@ void render_flush(const RenderCtx* ctx) {
     draw_bitmap_synchronously(ctx,
                               0,
                               0,
-                              ctx->width,
-                              ctx->height,
-                              ctx->framebuffer);
+                              ctx->framebuffer.width,
+                              ctx->framebuffer.height,
+                              ctx->framebuffer.data);
 }
