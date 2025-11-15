@@ -70,12 +70,29 @@ static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
     return (little_endian >> 8) | (little_endian << 8);
 }
 
+/*
+ * Callback used for detecting when the DMA transfer to the LCD screen is done.
+ *
+ * This function is specified when creating the 'esp_lcd_panel_io_spi_config_t'
+ * structure in 'render_init'.
+ */
+static bool on_lcd_transfer_done(esp_lcd_panel_io_handle_t panel_io,
+                                 esp_lcd_panel_io_event_data_t* edata,
+                                 void* user_ctx) {
+    RenderCtx* ctx             = user_ctx;
+    SemaphoreHandle_t sem      = ctx->flush_done_semaphore;
+    BaseType_t high_task_woken = pdFALSE;
+    xSemaphoreGiveFromISR(sem, &high_task_woken);
+    return high_task_woken == pdTRUE;
+}
+
 /*----------------------------------------------------------------------------*/
 
 void render_init(RenderCtx* ctx, size_t width, size_t height) {
-    ctx->width     = width;
-    ctx->height    = height;
-    ctx->lcd_panel = NULL;
+    ctx->width                = width;
+    ctx->height               = height;
+    ctx->lcd_panel            = NULL;
+    ctx->flush_done_semaphore = xSemaphoreCreateBinary();
 
     /*
      * Configure the backlight GPIO pin as output and turn it on.
@@ -105,13 +122,15 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
      */
     esp_lcd_panel_io_handle_t io_handle     = NULL;
     esp_lcd_panel_io_spi_config_t io_config = {
-        .dc_gpio_num       = LCD_DC,
-        .cs_gpio_num       = LCD_CS,
-        .pclk_hz           = LCD_PIXEL_CLK,
-        .lcd_cmd_bits      = 8,
-        .lcd_param_bits    = 8,
-        .spi_mode          = 0,
-        .trans_queue_depth = 10,
+        .dc_gpio_num         = LCD_DC,
+        .cs_gpio_num         = LCD_CS,
+        .pclk_hz             = LCD_PIXEL_CLK,
+        .lcd_cmd_bits        = 8,
+        .lcd_param_bits      = 8,
+        .spi_mode            = 0,
+        .trans_queue_depth   = 10,
+        .on_color_trans_done = on_lcd_transfer_done,
+        .user_ctx            = ctx,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST,
                                              &io_config,
@@ -231,14 +250,17 @@ void render_draw_line(const RenderCtx* ctx,
 }
 
 void render_flush(const RenderCtx* ctx) {
-    /*
-     * Transfer the entire framebuffer to the LCD in a single DMA transaction.
-     * This is much faster than individual pixel updates (~100x improvement).
-     */
+    /* Start the asynchronous DMA transfer from the framebuffer to the LCD. */
     esp_lcd_panel_draw_bitmap(ctx->lcd_panel,
                               0,
                               0,
                               ctx->width,
                               ctx->height,
                               ctx->framebuffer);
+
+    /*
+     * Wait for the counter of the binary semaphore to increase. This counter
+     * will be increased from the 'on_lcd_transfer_done' callback.
+     */
+    xSemaphoreTake(ctx->flush_done_semaphore, portMAX_DELAY);
 }

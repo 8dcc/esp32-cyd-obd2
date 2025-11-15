@@ -21,7 +21,8 @@
 
 #include <stdint.h>
 
-#include "esp_lcd_panel_ops.h"
+#include "freertos/FreeRTOS.h" /* SemaphoreHandle_t */
+#include "esp_lcd_panel_ops.h" /* esp_lcd_panel_handle_t */
 
 typedef struct RenderCtx {
     /* Resolution of the LCD */
@@ -32,6 +33,13 @@ typedef struct RenderCtx {
 
     /* Framebuffer for off-screen rendering (RGB565 format) */
     uint16_t* framebuffer;
+
+    /*
+     * Binary semaphore used to notify 'render_flush' that the LCD drawing is
+     * complete. This semaphore will be decreased (waited) from 'render_flush',
+     * and increased (signaled) from the DMA callback.
+     */
+    SemaphoreHandle_t flush_done_semaphore;
 } RenderCtx;
 
 /*----------------------------------------------------------------------------*/
@@ -82,10 +90,11 @@ void render_draw_line(const RenderCtx* ctx,
                       uint32_t color);
 
 /*
- * Flush the framebuffer to the physical LCD display.
+ * Synchronously flush the framebuffer to the physical LCD.
  *
  * Transfers the entire framebuffer to the LCD in a single DMA transaction,
- * which is much faster than individual pixel updates.
+ * while also waiting for the DMA callback, therefore ensuring the caller can't
+ * modify/free data that is being processed through DMA.
  */
 void render_flush(const RenderCtx* ctx);
 
