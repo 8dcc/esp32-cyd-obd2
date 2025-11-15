@@ -75,24 +75,87 @@ static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
  *
  * This function is specified when creating the 'esp_lcd_panel_io_spi_config_t'
  * structure in 'render_init'.
+ *
+ * The callback only signals the semaphore if there are no pending asynchronous
+ * transfers.
  */
 static bool on_lcd_transfer_done(esp_lcd_panel_io_handle_t panel_io,
                                  esp_lcd_panel_io_event_data_t* edata,
                                  void* user_ctx) {
-    RenderCtx* ctx             = user_ctx;
-    SemaphoreHandle_t sem      = ctx->flush_done_semaphore;
+    RenderCtx* ctx = user_ctx;
+
+    if (ctx->pending_async_transfers > 0) {
+        ctx->pending_async_transfers--;
+        return false;
+    }
+
     BaseType_t high_task_woken = pdFALSE;
-    xSemaphoreGiveFromISR(sem, &high_task_woken);
+    xSemaphoreGiveFromISR(ctx->flush_done_semaphore, &high_task_woken);
     return high_task_woken == pdTRUE;
+}
+
+/*
+ * Asynchronous wrapper for 'esp_lcd_panel_draw_bitmap'.
+ *
+ * Queues a DMA transfer and returns immediately. Does NOT signal the semaphore
+ * on completion. The caller must ensure the data buffer remains valid until
+ * the transfer completes.
+ */
+static void draw_bitmap_asynchronously(RenderCtx* ctx,
+                                       int x0,
+                                       int y0,
+                                       int x1,
+                                       int y1,
+                                       const void* data) {
+    /*
+     * Increment counter so callback knows to signal semaphore.
+     * Must happen BEFORE starting the transfer.
+     */
+    ctx->pending_async_transfers++;
+
+    /* Transfer counter stays at 0 - callback won't signal semaphore */
+    esp_lcd_panel_draw_bitmap(ctx->lcd_panel, x0, y0, x1, y1, data);
+}
+
+/*
+ * Synchronous wrapper for 'esp_lcd_panel_draw_bitmap', which waits for
+ * 'flush_done_semaphore' to be increased (signaled) from the
+ * 'on_lcd_transfer_done' callback.
+ */
+static void draw_bitmap_synchronously(const RenderCtx* ctx,
+                                      int x0,
+                                      int y0,
+                                      int x1,
+                                      int y1,
+                                      const void* data) {
+    if (ctx->pending_async_transfers > 0) {
+        fprintf(stderr,
+                "Tried to make a synchronous draw, while another %d "
+                "asynchronous transfers were pending. Waiting for them to "
+                "finish...\n",
+                ctx->pending_async_transfers);
+        while (ctx->pending_async_transfers > 0)
+            vTaskDelay(10);
+    }
+
+    /* Start the asynchronous DMA transfer from the data buffer to the LCD */
+    esp_lcd_panel_draw_bitmap(ctx->lcd_panel, x0, y0, x1, y1, data);
+
+    /*
+     * Wait for the counter of the binary semaphore to increase. This counter
+     * will be increased from the 'on_lcd_transfer_done' callback.
+     */
+    xSemaphoreTake(ctx->flush_done_semaphore, portMAX_DELAY);
 }
 
 /*----------------------------------------------------------------------------*/
 
 void render_init(RenderCtx* ctx, size_t width, size_t height) {
-    ctx->width                = width;
-    ctx->height               = height;
-    ctx->lcd_panel            = NULL;
-    ctx->flush_done_semaphore = xSemaphoreCreateBinary();
+    ctx->width                   = width;
+    ctx->height                  = height;
+    ctx->lcd_panel               = NULL;
+    ctx->flush_done_semaphore    = xSemaphoreCreateBinary();
+    ctx->pending_async_transfers = 0;
 
     /*
      * Configure the backlight GPIO pin as output and turn it on.
@@ -250,17 +313,11 @@ void render_draw_line(const RenderCtx* ctx,
 }
 
 void render_flush(const RenderCtx* ctx) {
-    /* Start the asynchronous DMA transfer from the framebuffer to the LCD. */
-    esp_lcd_panel_draw_bitmap(ctx->lcd_panel,
+    /* Transfer our framebuffer to the LCD, using our synchronous wrapper */
+    draw_bitmap_synchronously(ctx,
                               0,
                               0,
                               ctx->width,
                               ctx->height,
                               ctx->framebuffer);
-
-    /*
-     * Wait for the counter of the binary semaphore to increase. This counter
-     * will be increased from the 'on_lcd_transfer_done' callback.
-     */
-    xSemaphoreTake(ctx->flush_done_semaphore, portMAX_DELAY);
 }

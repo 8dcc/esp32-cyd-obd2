@@ -40,6 +40,13 @@ typedef struct RenderCtx {
      * and increased (signaled) from the DMA callback.
      */
     SemaphoreHandle_t flush_done_semaphore;
+
+    /*
+     * Counter tracking pending asynchronous transfers. The DMA callback only
+     * signals the semaphore if this counter is > 0, allowing async transfers
+     * to complete without affecting the semaphore.
+     */
+    volatile int pending_async_transfers;
 } RenderCtx;
 
 /*----------------------------------------------------------------------------*/
