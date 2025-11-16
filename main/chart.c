@@ -25,64 +25,70 @@
 #include "util.h"
 #include "render.h"
 
-void chart_init(ChartCtx* ctx, int num_channels, int history_size) {
-    ctx->num_channels = num_channels;
-    ctx->history_size = history_size;
-    ctx->write_pos    = 0;
-    ctx->min_value    = 0;
-    ctx->max_value    = 0;
+void chart_init(ChartCtx* chart_ctx, int num_channels, int history_size) {
+    chart_ctx->num_channels = num_channels;
+    chart_ctx->history_size = history_size;
+    chart_ctx->write_pos    = 0;
+    chart_ctx->min_value    = 0;
+    chart_ctx->max_value    = 0;
 
     const size_t circular_buffer_size =
-      ctx->num_channels * ctx->history_size * sizeof(float);
-    ctx->data = malloc(circular_buffer_size);
-    if (ctx->data == NULL) {
+      chart_ctx->num_channels * chart_ctx->history_size * sizeof(float);
+    chart_ctx->data = malloc(circular_buffer_size);
+    if (chart_ctx->data == NULL) {
         fprintf(stderr,
                 "Failed to allocate circular buffer for chart (%d channels of "
                 "%d history values; %zu bytes)\n",
-                ctx->num_channels,
-                ctx->history_size,
+                chart_ctx->num_channels,
+                chart_ctx->history_size,
                 circular_buffer_size);
         abort();
     }
 
-    for (size_t i = 0; i < ctx->num_channels * ctx->history_size; i++)
-        ctx->data[i] = 0.f;
+    for (size_t i = 0; i < chart_ctx->num_channels * chart_ctx->history_size;
+         i++)
+        chart_ctx->data[i] = 0.f;
 }
 
-void chart_destroy(ChartCtx* ctx) {
-    if (ctx->data != NULL) {
-        free(ctx->data);
-        ctx->data = NULL;
+void chart_destroy(ChartCtx* chart_ctx) {
+    if (chart_ctx->data != NULL) {
+        free(chart_ctx->data);
+        chart_ctx->data = NULL;
     }
 }
 
-void chart_push(ChartCtx* ctx, const float* values, int num_values) {
+void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
     /* This function must receive a value per chart channel */
-    assert(num_values == ctx->num_channels);
+    assert(num_values == chart_ctx->num_channels);
 
     /*
      * Write each value from the received array into the circular buffer of the
      * corresponding channel.
      */
-    for (int cur_channel = 0; cur_channel < ctx->num_channels; cur_channel++)
-        ctx->data[ctx->history_size * cur_channel + ctx->write_pos] =
-          values[cur_channel];
+    for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
+         cur_channel++) {
+        const size_t raw_data_idx =
+          chart_ctx->history_size * cur_channel + chart_ctx->write_pos;
+        chart_ctx->data[raw_data_idx] = values[cur_channel];
+    }
 
     /* Advance write position */
-    ctx->write_pos++;
-    if (ctx->write_pos >= ctx->history_size)
-        ctx->write_pos = 0;
+    chart_ctx->write_pos++;
+    if (chart_ctx->write_pos >= chart_ctx->history_size)
+        chart_ctx->write_pos = 0;
 }
 
-void chart_update_minmax(ChartCtx* ctx) {
-    assert(ctx->num_channels > 0);
+void chart_update_minmax(ChartCtx* chart_ctx) {
+    assert(chart_ctx->num_channels > 0);
 
-    float min = ctx->data[0];
-    float max = ctx->data[0];
+    float min = chart_ctx->data[0];
+    float max = chart_ctx->data[0];
 
-    for (int cur_channel = 0; cur_channel < ctx->num_channels; cur_channel++) {
-        for (int i = 0; i < ctx->history_size; i++) {
-            const float val = ctx->data[ctx->history_size * cur_channel + i];
+    for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
+         cur_channel++) {
+        for (int i = 0; i < chart_ctx->history_size; i++) {
+            const float val =
+              chart_ctx->data[chart_ctx->history_size * cur_channel + i];
             if (val < min)
                 min = val;
             if (val > max)
@@ -94,8 +100,8 @@ void chart_update_minmax(ChartCtx* ctx) {
     const float range  = max - min;
     const float margin = range * 0.1f;
 
-    ctx->min_value = min - margin;
-    ctx->max_value = max + margin;
+    chart_ctx->min_value = min - margin;
+    chart_ctx->max_value = max + margin;
 }
 
 void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
