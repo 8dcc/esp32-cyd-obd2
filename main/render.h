@@ -75,7 +75,7 @@ void render_destroy(RenderCtx* ctx);
  * This does not update the physical display; the caller should use
  * 'render_flush' to transfer the framebuffer to the LCD.
  */
-void render_clear(const RenderCtx* ctx);
+void render_clear(RenderCtx* ctx);
 
 /*
  * Draw a line of the specified RGB888 color from (x0, y0) to (x1, y1) in the

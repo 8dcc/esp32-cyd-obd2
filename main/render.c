@@ -260,9 +260,19 @@ void render_destroy(RenderCtx* ctx) {
     /* TODO: Call ESP-IDF functions for freeing LCD and SPI resources */
 }
 
-void render_clear(const RenderCtx* ctx) {
-    /* Clear the framebuffer to black. This is a fast in-memory operation. */
-    memset(ctx->framebuffer, 0x00, ctx->width * ctx->height * sizeof(uint16_t));
+void render_clear(RenderCtx* ctx) {
+    const size_t row_buffer_sz = ctx->width * sizeof(uint16_t);
+    uint16_t* row_buffer       = malloc(row_buffer_sz);
+    if (row_buffer == NULL) {
+        fprintf(stderr,
+                "Failed to allocate row buffer for clearing (%zu bytes)\n",
+                row_buffer_sz);
+        abort();
+    }
+    memset(row_buffer, 0x00, row_buffer_sz);
+
+    for (int y = 0; y < ctx->height; y++)
+        draw_bitmap_asynchronously(ctx, 0, y, ctx->width, y + 1, row_buffer);
 }
 
 void render_draw_line(const RenderCtx* ctx,
