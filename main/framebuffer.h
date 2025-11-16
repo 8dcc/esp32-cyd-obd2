@@ -60,3 +60,19 @@ void framebuffer_draw_line(const Framebuffer* framebuffer,
                            int x1,
                            int y1,
                            uint32_t color);
+
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Get the width of the specified framebuffer.
+ */
+static inline int framebuffer_get_width(const Framebuffer* framebuffer) {
+    return framebuffer->width;
+}
+
+/*
+ * Get the height of the specified framebuffer.
+ */
+static inline int framebuffer_get_height(const Framebuffer* framebuffer) {
+    return framebuffer->height;
+}
