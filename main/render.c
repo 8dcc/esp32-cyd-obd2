@@ -86,6 +86,8 @@ static void draw_bitmap_synchronously(const RenderCtx* ctx,
 /*----------------------------------------------------------------------------*/
 
 void render_init(RenderCtx* ctx, size_t width, size_t height) {
+    ctx->width                = width;
+    ctx->height               = height;
     ctx->lcd_panel            = NULL;
     ctx->flush_done_semaphore = xSemaphoreCreateBinary();
 
@@ -106,7 +108,7 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
         .sclk_io_num     = LCD_SCLK,
         .quadwp_io_num   = -1,
         .quadhd_io_num   = -1,
-        .max_transfer_sz = width * height * sizeof(uint16_t),
+        .max_transfer_sz = ctx->width * ctx->height * sizeof(uint16_t),
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 

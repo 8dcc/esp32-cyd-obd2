@@ -27,6 +27,9 @@
 #include "framebuffer.h"
 
 typedef struct RenderCtx {
+    /* Resolution of the physical LCD */
+    size_t width, height;
+
     /* LCD panel handle used to call 'esp_lcd_panel_*' functions */
     esp_lcd_panel_handle_t lcd_panel;
 
@@ -101,14 +104,14 @@ void render_flush(const RenderCtx* ctx);
  * Get the width of the specified render context.
  */
 static inline int render_get_width(const RenderCtx* ctx) {
-    return ctx->framebuffer.width;
+    return ctx->width;
 }
 
 /*
  * Get the height of the specified render context.
  */
 static inline int render_get_height(const RenderCtx* ctx) {
-    return ctx->framebuffer.height;
+    return ctx->height;
 }
 
 #endif /* RENDER_H_ */
