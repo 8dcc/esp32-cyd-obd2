@@ -39,6 +39,13 @@ typedef struct RenderCtx {
      * and increased (signaled) from the DMA callback.
      */
     SemaphoreHandle_t flush_done_semaphore;
+
+    /*
+     * Counter tracking pending asynchronous transfers. The DMA callback only
+     * signals the semaphore if this counter is > 0, allowing async transfers
+     * to complete without affecting the semaphore.
+     */
+    volatile int pending_async_transfers;
 } RenderCtx;
 
 /*----------------------------------------------------------------------------*/
@@ -64,7 +71,7 @@ void render_destroy(RenderCtx* ctx);
  * Clear the display associated to the specified render context, resetting
  * all pixels to black immediately.
  */
-void render_clear(const RenderCtx* ctx);
+void render_clear(RenderCtx* ctx);
 
 /*
  * Synchronously draw the specified framebuffer to the physical LCD associated
