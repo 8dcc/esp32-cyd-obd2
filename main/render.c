@@ -86,6 +86,27 @@ static bool on_lcd_transfer_done(esp_lcd_panel_io_handle_t panel_io,
     return high_task_woken == pdTRUE;
 }
 
+/*
+ * Synchronous wrapper for 'esp_lcd_panel_draw_bitmap', which waits for
+ * 'flush_done_semaphore' to be increased (signaled) from the
+ * 'on_lcd_transfer_done' callback.
+ */
+static void draw_bitmap_synchronously(const RenderCtx* ctx,
+                                      int x0,
+                                      int y0,
+                                      int x1,
+                                      int y1,
+                                      const void* data) {
+    /* Start the asynchronous DMA transfer from the data buffer to the LCD */
+    esp_lcd_panel_draw_bitmap(ctx->lcd_panel, x0, y0, x1, y1, data);
+
+    /*
+     * Wait for the counter of the binary semaphore to increase. This counter
+     * will be increased from the 'on_lcd_transfer_done' callback.
+     */
+    xSemaphoreTake(ctx->flush_done_semaphore, portMAX_DELAY);
+}
+
 /*----------------------------------------------------------------------------*/
 
 void render_init(RenderCtx* ctx, size_t width, size_t height) {
@@ -250,17 +271,11 @@ void render_draw_line(const RenderCtx* ctx,
 }
 
 void render_flush(const RenderCtx* ctx) {
-    /* Start the asynchronous DMA transfer from the framebuffer to the LCD. */
-    esp_lcd_panel_draw_bitmap(ctx->lcd_panel,
+    /* Transfer our framebuffer to the LCD, using our synchronous wrapper */
+    draw_bitmap_synchronously(ctx,
                               0,
                               0,
                               ctx->width,
                               ctx->height,
                               ctx->framebuffer);
-
-    /*
-     * Wait for the counter of the binary semaphore to increase. This counter
-     * will be increased from the 'on_lcd_transfer_done' callback.
-     */
-    xSemaphoreTake(ctx->flush_done_semaphore, portMAX_DELAY);
 }
