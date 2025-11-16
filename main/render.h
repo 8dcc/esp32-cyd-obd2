@@ -24,15 +24,14 @@
 #include "freertos/FreeRTOS.h" /* SemaphoreHandle_t */
 #include "esp_lcd_panel_ops.h" /* esp_lcd_panel_handle_t */
 
+#include "framebuffer.h"
+
 typedef struct RenderCtx {
-    /* Resolution of the LCD */
+    /* Resolution of the physical LCD */
     size_t width, height;
 
     /* LCD panel handle used to call 'esp_lcd_panel_*' functions */
     esp_lcd_panel_handle_t lcd_panel;
-
-    /* Framebuffer for off-screen rendering (RGB565 format) */
-    uint16_t* framebuffer;
 
     /*
      * Binary semaphore used to notify 'render_flush' that the LCD drawing is
@@ -62,41 +61,26 @@ void render_init(RenderCtx* ctx, size_t width, size_t height);
 void render_destroy(RenderCtx* ctx);
 
 /*
- * Clear the framebuffer associated to the specified render context, resetting
- * all pixels to black.
- *
- * This does not update the physical display; the caller should use
- * 'render_flush' to transfer the framebuffer to the LCD.
+ * Clear the display associated to the specified render context, resetting
+ * all pixels to black immediately.
  */
 void render_clear(const RenderCtx* ctx);
 
 /*
- * Draw a line of the specified RGB888 color from (x0, y0) to (x1, y1) in the
- * framebuffer associated to the specified render context.
- *
- * The line is drawn using Bresenham's line algorithm, which is an efficient
- * method for rasterizing lines that uses only integer arithmetic. It determines
- * which pixels should be selected to form a close approximation to a straight
- * line between two points.
- *
- * This does not update the physical display; the caller should use
- * 'render_flush' to transfer the framebuffer to the LCD.
- */
-void render_draw_line(const RenderCtx* ctx,
-                      int x0,
-                      int y0,
-                      int x1,
-                      int y1,
-                      uint32_t color);
-
-/*
- * Synchronously flush the framebuffer to the physical LCD.
+ * Synchronously draw the specified framebuffer to the physical LCD associated
+ * to the specified render context, at the specified X and Y starting
+ * coordinates.
  *
  * Transfers the entire framebuffer to the LCD in a single DMA transaction,
  * while also waiting for the DMA callback, therefore ensuring the caller can't
  * modify/free data that is being processed through DMA.
  */
-void render_flush(const RenderCtx* ctx);
+void render_draw_framebuffer(const RenderCtx* ctx,
+                             const Framebuffer* framebuffer,
+                             int x,
+                             int y);
+
+/*----------------------------------------------------------------------------*/
 
 /*
  * Get the width of the specified render context.
