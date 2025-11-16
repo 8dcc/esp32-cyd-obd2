@@ -40,15 +40,25 @@ typedef struct ChartCtx {
     /* Minimum and maximum values in the entire graph, for auto-scaling */
     float min_value;
     float max_value;
+
+    /* Framebuffer for off-screen rendering */
+    Framebuffer framebuffer;
 } ChartCtx;
 
 /*----------------------------------------------------------------------------*/
 
 /*
- * Initialize the specified chart context, allocating the necessary data for a
- * chart of the specified number of channels, with the specified history size.
+ * Initialize the specified responsive chart context, allocating the necessary
+ * data for a chart of the specified number of channels.
+ *
+ * The specified display dimensions will be used to determine the chart history
+ * size and the framebuffer dimensions, since this function assumes that the
+ * system has enough memory for a full-scale framebuffer.
  */
-void chart_init(ChartCtx* ctx, int num_channels, int history_size);
+void chart_init(ChartCtx* ctx,
+                int num_channels,
+                int display_width,
+                int display_height);
 
 /*
  * Deinitialize a chart context, freeing its necessary members. This function

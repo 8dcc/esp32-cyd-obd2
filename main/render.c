@@ -162,36 +162,36 @@ void render_init(RenderCtx* ctx, size_t width, size_t height) {
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
 
     ctx->lcd_panel = panel_handle;
-
-    /* Initialize the framebuffer */
-    framebuffer_init(&ctx->framebuffer, width, height);
 }
 
 void render_destroy(RenderCtx* ctx) {
-    framebuffer_destroy(&ctx->framebuffer);
-
     /* TODO: Call ESP-IDF functions for freeing LCD and SPI resources */
 }
 
 void render_clear(const RenderCtx* ctx) {
-    framebuffer_clear(&ctx->framebuffer);
+    /* TODO: Clear display immediately, without using too much memory */
 }
 
-void render_draw_line(const RenderCtx* ctx,
-                      int x0,
-                      int y0,
-                      int x1,
-                      int y1,
-                      uint32_t color) {
-    framebuffer_draw_line(&ctx->framebuffer, x0, y0, x1, y1, color);
-}
+void render_draw_framebuffer(const RenderCtx* ctx,
+                             const Framebuffer* framebuffer,
+                             int x,
+                             int y) {
+    /* Ensure the start coordinates are inside the display */
+    assert(x >= 0 && x < ctx->width && y >= 0 && y < ctx->height);
 
-void render_flush(const RenderCtx* ctx) {
-    /* Transfer our framebuffer to the LCD, using our synchronous wrapper */
+    /*
+     * Note that the 'x_end' and 'y_end' arguments of
+     * 'esp_lcd_panel_draw_bitmap' are not inclusive, so they can be equal to
+     * the display width or height.
+     */
+    assert(x + framebuffer->width <= ctx->width &&
+           y + framebuffer->height <= ctx->height);
+
+    /* Transfer the framebuffer to the LCD, using our synchronous wrapper */
     draw_bitmap_synchronously(ctx,
-                              0,
-                              0,
-                              ctx->framebuffer.width,
-                              ctx->framebuffer.height,
-                              ctx->framebuffer.data);
+                              x,
+                              y,
+                              x + framebuffer->width,
+                              y + framebuffer->height,
+                              framebuffer->data);
 }

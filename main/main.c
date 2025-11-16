@@ -45,15 +45,17 @@
  * serial and plot it as a scrolling multi-channel line chart.
  */
 void app_main(void) {
-    /* Initialize rendering */
+    /* Initialize rendering context */
     RenderCtx render_ctx;
     render_init(&render_ctx, LCD_WIDTH, LCD_HEIGHT);
     render_clear(&render_ctx);
-    render_flush(&render_ctx);
 
     /* Initialize chart context, which will contain the data being plotted */
     ChartCtx chart_ctx;
-    chart_init(&chart_ctx, CHANNEL_NUM, render_get_width(&render_ctx));
+    chart_init(&chart_ctx,
+               CHANNEL_NUM,
+               render_get_width(&render_ctx),
+               render_get_height(&render_ctx));
 
     /* Initialize serial communication, which will be used to receive data */
     serial_uart_init();
@@ -85,10 +87,8 @@ void app_main(void) {
         /* Update auto-scaling of the chart */
         chart_update_minmax(&chart_ctx);
 
-        /* Redraw chart to framebuffer and flush to display */
-        render_clear(&render_ctx);
+        /* Draw the chart to the display associated to the render context */
         chart_render(&chart_ctx, &render_ctx);
-        render_flush(&render_ctx);
     }
 
     chart_destroy(&chart_ctx);

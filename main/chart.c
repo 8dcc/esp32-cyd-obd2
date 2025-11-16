@@ -25,13 +25,22 @@
 #include "util.h"
 #include "render.h"
 
-void chart_init(ChartCtx* chart_ctx, int num_channels, int history_size) {
+void chart_init(ChartCtx* chart_ctx,
+                int num_channels,
+                int display_width,
+                int display_height) {
+    /*
+     * In this chart, since we have enough memory, the full value history will
+     * be kept, and renderized each frame. This enables useful features, such as
+     * Y-axis autoscaling.
+     */
     chart_ctx->num_channels = num_channels;
-    chart_ctx->history_size = history_size;
+    chart_ctx->history_size = display_width;
     chart_ctx->write_pos    = 0;
     chart_ctx->min_value    = 0;
     chart_ctx->max_value    = 0;
 
+    /* Allocate the circular buffer for storing the value history */
     const size_t circular_buffer_size =
       chart_ctx->num_channels * chart_ctx->history_size * sizeof(float);
     chart_ctx->data = malloc(circular_buffer_size);
@@ -48,6 +57,13 @@ void chart_init(ChartCtx* chart_ctx, int num_channels, int history_size) {
     for (size_t i = 0; i < chart_ctx->num_channels * chart_ctx->history_size;
          i++)
         chart_ctx->data[i] = 0.f;
+
+    /*
+     * Initialize the framebuffer, which will be used for rendering the chart
+     * into the display. Again, since we have enough memory, we allocate a full
+     * display framebuffer, which will be cleared and re-drawn each frame.
+     */
+    framebuffer_init(&chart_ctx->framebuffer, display_width, display_height);
 }
 
 void chart_destroy(ChartCtx* chart_ctx) {
@@ -55,6 +71,8 @@ void chart_destroy(ChartCtx* chart_ctx) {
         free(chart_ctx->data);
         chart_ctx->data = NULL;
     }
+
+    framebuffer_destroy(&chart_ctx->framebuffer);
 }
 
 void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
@@ -78,6 +96,11 @@ void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
         chart_ctx->write_pos = 0;
 }
 
+/*
+ * TODO: Possibly make static and call from 'chart_render'.
+ * TODO: Possibly return values, rather than writing them into the context
+ * structure.
+ */
 void chart_update_minmax(ChartCtx* chart_ctx) {
     assert(chart_ctx->num_channels > 0);
 
@@ -128,11 +151,15 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
     }
 
     /* Calculate scale factor based on min/max values */
-    const int display_height = render_get_height(render_ctx);
-    const float value_range  = max_value - min_value;
-    const float scale        = (float)display_height / value_range;
+    const int framebuffer_height =
+      framebuffer_get_height(&chart_ctx->framebuffer);
+    const float value_range = max_value - min_value;
+    const float scale       = (float)framebuffer_height / value_range;
 
-    /* Draw each channel */
+    /* Clear the framebuffer, before redrawing */
+    framebuffer_clear(&chart_ctx->framebuffer);
+
+    /* Draw each channel to the framebuffer */
     for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
          cur_channel++) {
         for (int x = 1; x < chart_ctx->history_size; x++) {
@@ -150,14 +177,25 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
 
             /* Convert to screen Y coordinates (inverted, 0 at top) */
             const int y_prev =
-              display_height - (int)((val_prev - min_value) * scale);
+              framebuffer_height - (int)((val_prev - min_value) * scale);
             const int y_cur =
-              display_height - (int)((val_cur - min_value) * scale);
+              framebuffer_height - (int)((val_cur - min_value) * scale);
 
             /* Draw line segment */
             const uint32_t cur_color =
               channel_colors[cur_channel % LENGTH(channel_colors)];
-            render_draw_line(render_ctx, x - 1, y_prev, x, y_cur, cur_color);
+            framebuffer_draw_line(&chart_ctx->framebuffer,
+                                  x - 1,
+                                  y_prev,
+                                  x,
+                                  y_cur,
+                                  cur_color);
         }
     }
+
+    /*
+     * Draw the entire framebuffer we just filled into the LCD, filling it
+     * entirely.
+     */
+    render_draw_framebuffer(render_ctx, &chart_ctx->framebuffer, 0, 0);
 }
