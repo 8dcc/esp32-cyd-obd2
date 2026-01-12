@@ -16,6 +16,9 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef FRAMEBUFFER_H_
+#define FRAMEBUFFER_H_ 1
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -76,3 +79,5 @@ static inline int framebuffer_get_width(const Framebuffer* framebuffer) {
 static inline int framebuffer_get_height(const Framebuffer* framebuffer) {
     return framebuffer->height;
 }
+
+#endif /* FRAMEBUFFER_H_ */
