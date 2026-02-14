@@ -45,10 +45,13 @@
  * serial and plot it as a scrolling multi-channel line chart.
  */
 void app_main(void) {
+    LOGI("Booted ESP32 CYD OBD2.");
+
     /* Initialize rendering context */
     RenderCtx render_ctx;
     render_init(&render_ctx, LCD_WIDTH, LCD_HEIGHT);
     render_clear(&render_ctx);
+    LOGI("Display initialized: %dx%d", LCD_WIDTH, LCD_HEIGHT);
 
     /* Initialize chart context, which will contain the data being plotted */
     ChartCtx chart_ctx;
@@ -56,9 +59,11 @@ void app_main(void) {
                CHANNEL_NUM,
                render_get_width(&render_ctx),
                render_get_height(&render_ctx));
+    LOGI("Initialized chart context.");
 
     /* Initialize serial communication, which will be used to receive data */
     serial_uart_init();
+    LOGI("Initialized UART serial for data.");
 
     /*
      * Array of values read each iteration. It is declared outside of the main
@@ -73,9 +78,7 @@ void app_main(void) {
         for (int i = 0; i < LENGTH(values); i++) {
             float received_value;
             if (!serial_uart_read_value(&received_value)) {
-                fprintf(stderr,
-                        "Failed to read serial data in channel #%d\n",
-                        i);
+                LOGE("Failed to read serial data in channel #%d\n", i);
                 continue;
             }
             values[i] = received_value;
@@ -91,6 +94,7 @@ void app_main(void) {
         chart_render(&chart_ctx, &render_ctx);
     }
 
+    LOGI("Deinitializing...");
     chart_destroy(&chart_ctx);
     render_destroy(&render_ctx);
 }
