@@ -20,6 +20,8 @@
 #define SERIAL_UART_H_ 1
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 /*
  * Initialize UART zero of the ESP for data communication.
@@ -38,5 +40,17 @@ void serial_uart_init(void);
  * function from the 'ctype.h' header.
  */
 bool serial_uart_read_value(float* dst);
+
+/*
+ * Write 'len' bytes to the previously-initialized UART.
+ * Returns the number of bytes written, or -1 on error.
+ */
+int serial_uart_write(const uint8_t* data, size_t len);
+
+/*
+ * Read up to 'len' bytes from the previously-initialized UART without
+ * blocking. Returns the number of bytes read (may be 0 if none available).
+ */
+int serial_uart_read(uint8_t* buf, size_t len);
 
 #endif /* SERIAL_UART_H_ */
