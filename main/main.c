@@ -23,6 +23,7 @@
 #include "render.h"
 #include "chart.h"
 #include "serial_uart.h"
+#include "serial_bluetooth.h"
 #include "util.h"
 
 /*
@@ -38,6 +39,7 @@
  */
 #define CHANNEL_NUM 4
 
+#if 0
 /*
  * ESP-IDF application entry point.
  *
@@ -98,3 +100,41 @@ void app_main(void) {
     chart_destroy(&chart_ctx);
     render_destroy(&render_ctx);
 }
+#else
+/* MAC address of the target Bluetooth SPP device */
+static const uint8_t TARGET_MAC[6] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+
+void app_main(void) {
+    LOGI("Booted ESP32 CYD OBD2.");
+
+    serial_uart_init();
+    LOGI("UART initialized.");
+
+    if (!serial_bt_init()) {
+        LOGE("Failed to initialize Bluetooth.");
+        return;
+    }
+
+    if (!serial_bt_connect(TARGET_MAC))
+        LOGW("Initial BT connect failed, will retry in loop.");
+
+    uint8_t buf[128];
+    for (;;) {
+        if (!serial_bt_is_connected()) {
+            LOGI("BT disconnected, reconnecting...");
+            serial_bt_connect(TARGET_MAC);
+            continue;
+        }
+
+        /* UART → BT */
+        int n = serial_uart_read(buf, sizeof(buf));
+        if (n > 0)
+            serial_bt_write(buf, n);
+
+        /* BT → UART */
+        n = serial_bt_read(buf, sizeof(buf));
+        if (n > 0)
+            serial_uart_write(buf, n);
+    }
+}
+#endif
