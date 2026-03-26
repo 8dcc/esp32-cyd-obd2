@@ -43,14 +43,14 @@ bool serial_uart_read_value(float* dst);
 
 /*
  * Write 'len' bytes to the previously-initialized UART.
- * Returns the number of bytes written, or -1 on error.
+ * Returns the number of bytes written.
  */
-int serial_uart_write(const uint8_t* data, size_t len);
+size_t serial_uart_write(const uint8_t* data, size_t len);
 
 /*
  * Read up to 'len' bytes from the previously-initialized UART without
  * blocking. Returns the number of bytes read (may be 0 if none available).
  */
-int serial_uart_read(uint8_t* buf, size_t len);
+size_t serial_uart_read(uint8_t* buf, size_t len);
 
 #endif /* SERIAL_UART_H_ */

@@ -63,14 +63,14 @@ void serial_uart_init(void) {
                         0);
 }
 
-int serial_uart_write(const uint8_t* data, size_t len) {
+size_t serial_uart_write(const uint8_t* data, size_t len) {
     const int written = uart_write_bytes(SERIAL_UART_NUM, data, len);
-    return written;
+    return (written < 0) ? 0 : written;
 }
 
-int serial_uart_read(uint8_t* buf, size_t len) {
+size_t serial_uart_read(uint8_t* buf, size_t len) {
     const int read = uart_read_bytes(SERIAL_UART_NUM, buf, len, 0);
-    return read;
+    return (read < 0) ? 0 : read;
 }
 
 bool serial_uart_read_value(float* dst) {
