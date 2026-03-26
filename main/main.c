@@ -20,6 +20,9 @@
 #include <string.h> /* memset, strtok */
 #include <stdlib.h> /* atof */
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "render.h"
 #include "chart.h"
 #include "serial_uart.h"
@@ -135,6 +138,16 @@ void app_main(void) {
         n = serial_bt_read(buf, sizeof(buf));
         if (n > 0)
             serial_uart_write(buf, n);
+
+        /*
+         * Arbitrary delay, which specifies the maximum ammount of time that the
+         * board should wait for:
+         *
+         *   1. Checking if the bluetooth should reconnect.
+         *   2. Flusing the UART/SerialBluetooth data, which has been saved
+         *      by FreeRTOS in the RX ring buffers.
+         */
+        vTaskDelay(1);
     }
 }
 #endif

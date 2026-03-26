@@ -161,7 +161,8 @@ int serial_bt_write(const uint8_t* data, size_t len) {
 }
 
 int serial_bt_read(uint8_t* buf, size_t len) {
-    xSemaphoreTake(g_bt_ctx.rx_mutex, portMAX_DELAY);
+    if (xSemaphoreTake(g_bt_ctx.rx_mutex, 0) != pdTRUE)
+        return 0;
     size_t count = 0;
     while (count < len && g_bt_ctx.rx_tail != g_bt_ctx.rx_head) {
         buf[count++]     = g_bt_ctx.rx_buf[g_bt_ctx.rx_tail];
