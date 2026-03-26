@@ -152,24 +152,26 @@ bool serial_bt_is_connected(void) {
     return g_bt_ctx.connected;
 }
 
-int serial_bt_write(const uint8_t* data, size_t len) {
+size_t serial_bt_write(const uint8_t* data, size_t len) {
     if (!g_bt_ctx.connected)
-        return -1;
-    /* esp_spp_write takes a non-const pointer; cast is safe here */
+        return 0;
+
     const esp_err_t err = esp_spp_write(g_bt_ctx.handle, len, (uint8_t*)data);
-    return (err == ESP_OK) ? (int)len : -1;
+    return (err == ESP_OK) ? len : 0;
 }
 
-int serial_bt_read(uint8_t* buf, size_t len) {
+size_t serial_bt_read(uint8_t* buf, size_t len) {
     if (xSemaphoreTake(g_bt_ctx.rx_mutex, 0) != pdTRUE)
         return 0;
+
     size_t count = 0;
     while (count < len && g_bt_ctx.rx_tail != g_bt_ctx.rx_head) {
         buf[count++]     = g_bt_ctx.rx_buf[g_bt_ctx.rx_tail];
         g_bt_ctx.rx_tail = (g_bt_ctx.rx_tail + 1) % BT_RX_BUF_SIZE;
     }
+
     xSemaphoreGive(g_bt_ctx.rx_mutex);
-    return (int)count;
+    return count;
 }
 
 void serial_bt_deinit(void) {

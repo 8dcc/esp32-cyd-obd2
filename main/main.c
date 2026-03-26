@@ -121,7 +121,9 @@ void app_main(void) {
     if (!serial_bt_connect(TARGET_MAC))
         LOGW("Initial BT connect failed, will retry in loop.");
 
+    size_t num_read;
     uint8_t buf[128];
+
     for (;;) {
         if (!serial_bt_is_connected()) {
             LOGI("BT disconnected, reconnecting...");
@@ -130,14 +132,14 @@ void app_main(void) {
         }
 
         /* UART → BT */
-        int n = serial_uart_read(buf, sizeof(buf));
-        if (n > 0)
-            serial_bt_write(buf, n);
+        num_read = serial_uart_read(buf, sizeof(buf));
+        if (num_read > 0)
+            serial_bt_write(buf, num_read);
 
         /* BT → UART */
-        n = serial_bt_read(buf, sizeof(buf));
-        if (n > 0)
-            serial_uart_write(buf, n);
+        num_read = serial_bt_read(buf, sizeof(buf));
+        if (num_read > 0)
+            serial_uart_write(buf, num_read);
 
         /*
          * Arbitrary delay, which specifies the maximum ammount of time that the

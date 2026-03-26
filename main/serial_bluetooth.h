@@ -44,15 +44,15 @@ bool serial_bt_is_connected(void);
 
 /*
  * Write 'len' bytes over the SPP connection.
- * Returns the number of bytes written, or -1 on error.
+ * Returns the number of bytes written.
  */
-int serial_bt_write(const uint8_t* data, size_t len);
+size_t serial_bt_write(const uint8_t* data, size_t len);
 
 /*
  * Read up to 'len' bytes from the internal receive buffer (non-blocking).
  * Returns the number of bytes read (may be 0 if none available).
  */
-int serial_bt_read(uint8_t* buf, size_t len);
+size_t serial_bt_read(uint8_t* buf, size_t len);
 
 /*
  * Disconnect from the remote device and release Bluetooth resources.
