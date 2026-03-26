@@ -101,7 +101,13 @@ bool serial_bt_init(void) {
         goto fail_bluedroid;
     if (esp_spp_register_callback(spp_callback) != ESP_OK)
         goto fail_bluedroid;
-    if (esp_spp_init(ESP_SPP_MODE_CB) != ESP_OK)
+
+    const esp_spp_cfg_t spp_cfg = {
+        .mode             = ESP_SPP_MODE_CB,
+        .enable_l2cap_ertm = false,
+        .tx_buffer_size   = 0,
+    };
+    if (esp_spp_enhanced_init(&spp_cfg) != ESP_OK)
         goto fail_bluedroid;
 
     LOGI("Bluetooth initialized.");
