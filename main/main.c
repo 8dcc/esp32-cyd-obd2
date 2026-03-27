@@ -28,6 +28,8 @@
 #include "serial_uart.h"
 #include "serial_bluetooth.h"
 #include "util.h"
+#include "elm327.h"
+#include "obd2.h"
 
 /*
  * Display resolution in pixels.
@@ -118,38 +120,49 @@ void app_main(void) {
         return;
     }
 
-    if (!serial_bt_connect(TARGET_MAC))
-        LOGW("Initial BT connect failed, will retry in loop.");
-
-    size_t num_read;
-    uint8_t buf[128];
+    uint8_t buf[64];
+    float value;
 
     for (;;) {
         if (!serial_bt_is_connected()) {
-            LOGI("BT disconnected, reconnecting...");
-            serial_bt_connect(TARGET_MAC);
+            LOGI("Attempting bluetooth connection...");
+
+            if (!serial_bt_connect(TARGET_MAC)) {
+                LOGE("Failed to connect to OBD2 adapter.");
+                continue;
+            }
+            LOGI("Connected to OBD2 adapter.");
+
+            if (!elm327_init(serial_bt_write, serial_bt_read)) {
+                LOGE("ELM327 initialization failed.");
+                continue;
+            }
+            LOGI("Initialized ELM327.");
+        }
+
+        /* Request RPM */
+        const size_t req_len = obd_build_request(OBD_PID_RPM, buf, sizeof(buf));
+        if (req_len == 0) {
+            LOGE("Failed to build OBD2 request.");
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+        serial_bt_write(buf, req_len);
+
+        const size_t resp_len = serial_bt_read(buf, sizeof(buf));
+        if (resp_len == 0) {
+            LOGW("No OBD2 response received.");
+            vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
 
-        /* UART → BT */
-        num_read = serial_uart_read(buf, sizeof(buf));
-        if (num_read > 0)
-            serial_bt_write(buf, num_read);
+        if (obd_decode_response(OBD_PID_RPM, buf, resp_len, &value)) {
+            LOGI("RPM: %.1f", value);
+        } else {
+            LOGW("Failed to decode OBD2 response.");
+        }
 
-        /* BT → UART */
-        num_read = serial_bt_read(buf, sizeof(buf));
-        if (num_read > 0)
-            serial_uart_write(buf, num_read);
-
-        /*
-         * Arbitrary delay, which specifies the maximum ammount of time that the
-         * board should wait for:
-         *
-         *   1. Checking if the bluetooth should reconnect.
-         *   2. Flusing the UART/SerialBluetooth data, which has been saved
-         *      by FreeRTOS in the RX ring buffers.
-         */
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 #endif
