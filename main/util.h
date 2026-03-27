@@ -25,6 +25,11 @@
 #define LENGTH(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
 
 /*
+ * Explicitly mark a symbol as unused, to avoid compilator warnings.
+ */
+#define UNUSED(SYM) ((void)SYM)
+
+/*
  * Wrappers for ESP-IDF's logging macros, passing the current filename as the
  * TAG argument.
  */
