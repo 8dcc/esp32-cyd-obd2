@@ -103,7 +103,7 @@ static bool parse_hex_byte(const char* str, uint8_t* out) {
 
 /*----------------------------------------------------------------------------*/
 
-size_t obd_build_request(ObdPid pid, uint8_t* buf, size_t buf_sz) {
+size_t obd_build_request(EObdPid pid, uint8_t* buf, size_t buf_sz) {
     if (pid >= LENGTH(PID_TABLE))
         return 0;
 
@@ -116,7 +116,7 @@ size_t obd_build_request(ObdPid pid, uint8_t* buf, size_t buf_sz) {
     return request_len;
 }
 
-bool obd_decode_response(ObdPid pid,
+bool obd_decode_response(EObdPid pid,
                          const uint8_t* buf,
                          size_t len,
                          float* out) {

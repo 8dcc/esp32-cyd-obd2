@@ -31,21 +31,23 @@ typedef enum {
     OBD_PID_ENGINE_LOAD,
     OBD_PID_INTAKE_TEMP,
     OBD_PID_COOLANT_TEMP,
-} ObdPid;
+} EObdPid;
 
 /*
  * Write the OBD2 request bytes for the specified 'pid' into 'buf'. The
  * output is not null-terminated. Returns the number of bytes written,
  * or 0 on error.
  */
-size_t obd_build_request(ObdPid pid, uint8_t* buf, size_t buf_sz);
+size_t obd_build_request(EObdPid pid, uint8_t* buf, size_t buf_sz);
 
 /*
  * Decode the ELM327 response in 'buf' for the specified 'pid' into 'out'.
  * Returns true on success, false if the response is malformed or contains
  * an error string.
  */
-bool obd_decode_response(ObdPid pid, const uint8_t* buf, size_t len,
+bool obd_decode_response(EObdPid pid,
+                         const uint8_t* buf,
+                         size_t len,
                          float* out);
 
 #endif /* OBD2_H_ */
