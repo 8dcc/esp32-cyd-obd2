@@ -38,17 +38,18 @@ static float decode_temp(uint8_t a, uint8_t b);
 /*----------------------------------------------------------------------------*/
 
 static const struct {
+    const char* name;
     const char* request;
     uint8_t num_bytes;
     obd_decode_fn decode;
 } PID_TABLE[] = {
-    [OBD_PID_RPM]             = { "010C\r", 2, decode_rpm },
-    [OBD_PID_SPEED]           = { "010D\r", 1, decode_speed },
-    [OBD_PID_THROTTLE]        = { "0111\r", 1, decode_percent },
-    [OBD_PID_INTAKE_PRESSURE] = { "010B\r", 1, decode_kpa },
-    [OBD_PID_ENGINE_LOAD]     = { "0104\r", 1, decode_percent },
-    [OBD_PID_INTAKE_TEMP]     = { "010F\r", 1, decode_temp },
-    [OBD_PID_COOLANT_TEMP]    = { "0105\r", 1, decode_temp },
+    [OBD_PID_RPM]             = { "RPM", "010C\r", 2, decode_rpm },
+    [OBD_PID_SPEED]           = { "Speed", "010D\r", 1, decode_speed },
+    [OBD_PID_THROTTLE]        = { "Throttle", "0111\r", 1, decode_percent },
+    [OBD_PID_INTAKE_PRESSURE] = { "Intake pressure", "010B\r", 1, decode_kpa },
+    [OBD_PID_ENGINE_LOAD]     = { "Engine load", "0104\r", 1, decode_percent },
+    [OBD_PID_INTAKE_TEMP]     = { "Intake temp", "010F\r", 1, decode_temp },
+    [OBD_PID_COOLANT_TEMP]    = { "Coolant temp", "0105\r", 1, decode_temp },
 };
 
 static const char* ERROR_STRINGS[] = {
@@ -102,6 +103,12 @@ static bool parse_hex_byte(const char* str, uint8_t* out) {
 }
 
 /*----------------------------------------------------------------------------*/
+
+const char* obd_pid_name(EObdPid pid) {
+    if (pid >= OBD_NUM_PIDS)
+        return NULL;
+    return PID_TABLE[pid].name;
+}
 
 size_t obd_build_request(EObdPid pid, uint8_t* buf, size_t buf_sz) {
     if (pid >= LENGTH(PID_TABLE))

@@ -31,7 +31,14 @@ typedef enum {
     OBD_PID_ENGINE_LOAD,
     OBD_PID_INTAKE_TEMP,
     OBD_PID_COOLANT_TEMP,
+
+    OBD_NUM_PIDS,
 } EObdPid;
+
+/*
+ * Return the human-readable name for the specified 'pid'.
+ */
+const char* obd_pid_name(EObdPid pid);
 
 /*
  * Write the OBD2 request bytes for the specified 'pid' into 'buf'. The
