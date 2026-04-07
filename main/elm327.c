@@ -25,25 +25,27 @@
 static const struct {
     const char* cmd;
     const char* expected;
+    uint32_t timeout_ms;
 } INIT_SEQUENCE[] = {
-    { "ATZ\r", "ELM327" },
-    { "ATE0\r", "OK" },
-    { "ATL0\r", "OK" },
-    { "ATSP0\r", "OK" },
+    { "ATZ\r",   "ELM327", 2000 },
+    { "ATE0\r",  "OK",     1000 },
+    { "ATL0\r",  "OK",     1000 },
+    { "ATSP0\r", "OK",     1000 },
 };
 
 bool elm327_init(elm327_write_fn write, elm327_read_fn read) {
     uint8_t buf[64];
 
     for (size_t i = 0; i < LENGTH(INIT_SEQUENCE); i++) {
-        const char* cmd      = INIT_SEQUENCE[i].cmd;
-        const char* expected = INIT_SEQUENCE[i].expected;
+        const char* cmd        = INIT_SEQUENCE[i].cmd;
+        const char* expected   = INIT_SEQUENCE[i].expected;
+        const uint32_t timeout = INIT_SEQUENCE[i].timeout_ms;
 
         const size_t cmd_len = strlen(cmd);
         if (write((const uint8_t*)cmd, cmd_len) != cmd_len)
             return false;
 
-        const size_t num_read = read(buf, sizeof(buf) - 1);
+        const size_t num_read = read(buf, sizeof(buf) - 1, timeout);
         buf[num_read]         = '\0';
 
         if (strstr((const char*)buf, expected) == NULL)

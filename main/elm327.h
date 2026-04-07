@@ -25,7 +25,7 @@
 
 /* Function pointer types for the transport layer */
 typedef size_t (*elm327_write_fn)(const uint8_t* data, size_t len);
-typedef size_t (*elm327_read_fn)(uint8_t* buf, size_t len);
+typedef size_t (*elm327_read_fn)(uint8_t* buf, size_t len, uint32_t timeout_ms);
 
 /*
  * Initialize the ELM327 adapter by sending the standard AT init sequence

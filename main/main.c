@@ -140,7 +140,7 @@ void app_main(void) {
             }
             LOGI("Connected to OBD2 adapter.");
 
-            if (!elm327_init(serial_bt_write, serial_bt_read)) {
+            if (!elm327_init(serial_bt_write, serial_bt_read_blocking)) {
                 LOGE("ELM327 initialization failed.");
                 continue;
             }
