@@ -180,6 +180,21 @@ size_t serial_bt_read(uint8_t* buf, size_t len) {
     return count;
 }
 
+size_t serial_bt_read_blocking(uint8_t* buf, size_t len, uint32_t timeout_ms) {
+    const TickType_t deadline =
+        xTaskGetTickCount() + pdMS_TO_TICKS(timeout_ms);
+
+    size_t count = 0;
+    do {
+        count = serial_bt_read(buf, len);
+        if (count > 0)
+            break;
+        vTaskDelay(pdMS_TO_TICKS(10));
+    } while (xTaskGetTickCount() < deadline);
+
+    return count;
+}
+
 void serial_bt_deinit(void) {
     if (g_bt_ctx.connected)
         esp_spp_disconnect(g_bt_ctx.handle);

@@ -55,6 +55,12 @@ size_t serial_bt_write(const uint8_t* data, size_t len);
 size_t serial_bt_read(uint8_t* buf, size_t len);
 
 /*
+ * Read up to 'len' bytes, blocking until at least one byte arrives or
+ * 'timeout_ms' milliseconds elapse. Returns the number of bytes read.
+ */
+size_t serial_bt_read_blocking(uint8_t* buf, size_t len, uint32_t timeout_ms);
+
+/*
  * Disconnect from the remote device and release Bluetooth resources.
  */
 void serial_bt_deinit(void);
