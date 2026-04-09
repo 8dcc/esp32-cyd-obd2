@@ -20,10 +20,16 @@
 #include <string.h> /* memset, strtok */
 #include <stdlib.h> /* atof */
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "render.h"
 #include "chart.h"
 #include "serial_uart.h"
+#include "serial_bluetooth.h"
 #include "util.h"
+#include "elm327.h"
+#include "obd2.h"
 
 /*
  * Display resolution in pixels.
@@ -32,6 +38,7 @@
 #define LCD_WIDTH  320 /* Horizontal resolution */
 #define LCD_HEIGHT 240 /* Vertical resolution */
 
+#if 0
 /*
  * TODO: Don't hard-code channel number, obtain from number of rendered OBD2
  * fields.
@@ -98,3 +105,85 @@ void app_main(void) {
     chart_destroy(&chart_ctx);
     render_destroy(&render_ctx);
 }
+#else
+/*
+ * MAC address of the target Bluetooth SPP device.
+ */
+static const uint8_t TARGET_MAC[6] = { 0x1C, 0x1B, 0xB5, 0x71, 0x80, 0x9E };
+
+/*
+ * Delay in miliseconds for fetching PID data from the OBD2 adapter.
+ */
+#define FETCH_DELAY_MS 100
+
+void app_main(void) {
+    LOGI("Booted ESP32 CYD OBD2.");
+
+    serial_uart_init();
+    LOGI("UART initialized.");
+
+    if (!serial_bt_init()) {
+        LOGE("Failed to initialize Bluetooth.");
+        return;
+    }
+
+    Elm327Ctx elm_ctx;
+    elm327_init(&elm_ctx, serial_bt_write, serial_bt_read_blocking);
+
+    float obd_values[OBD_NUM_PIDS] = { 0 };
+    uint8_t buf[64];
+
+    for (;;) {
+        if (!serial_bt_is_connected()) {
+            LOGI("Attempting bluetooth connection...");
+
+            if (!serial_bt_connect(TARGET_MAC)) {
+                LOGE("Failed to connect to OBD2 adapter.");
+                continue;
+            }
+            LOGI("Connected to OBD2 adapter.");
+
+            if (!elm327_setup(&elm_ctx)) {
+                LOGE("ELM327 setup failed.");
+                continue;
+            }
+            LOGI("ELM327 setup complete.");
+        }
+
+        for (EObdPid pid = 0; pid < OBD_NUM_PIDS; pid++) {
+            vTaskDelay(pdMS_TO_TICKS(FETCH_DELAY_MS));
+
+            const char* pid_name = obd_pid_name(pid);
+
+            const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
+            if (req_len == 0) {
+                LOGE("Failed to build OBD2 request for PID '%s'.", pid_name);
+                continue;
+            }
+            elm327_write(&elm_ctx, buf, req_len);
+
+            const size_t resp_len =
+              elm327_read_response(&elm_ctx, buf, sizeof(buf), 5000);
+            if (resp_len == 0) {
+                LOGW("No BT response received for PID '%s'.", pid_name);
+                continue;
+            }
+
+            if (!obd_decode_response(pid, buf, resp_len, &obd_values[pid])) {
+                LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
+                HEXDUMP(buf, resp_len);
+                continue;
+            }
+
+            /* TODO: Display on screen, plot, etc. */
+            char msg[64];
+            const int len = snprintf(msg,
+                                     sizeof(msg),
+                                     "%s: %.1f\n",
+                                     pid_name,
+                                     obd_values[pid]);
+            serial_uart_write((const uint8_t*)msg, (size_t)len);
+        }
+    }
+}
+#endif

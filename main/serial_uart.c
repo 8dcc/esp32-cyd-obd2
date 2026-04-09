@@ -63,6 +63,16 @@ void serial_uart_init(void) {
                         0);
 }
 
+size_t serial_uart_write(const uint8_t* data, size_t len) {
+    const int written = uart_write_bytes(SERIAL_UART_NUM, data, len);
+    return (written < 0) ? 0 : written;
+}
+
+size_t serial_uart_read(uint8_t* buf, size_t len) {
+    const int read = uart_read_bytes(SERIAL_UART_NUM, buf, len, 0);
+    return (read < 0) ? 0 : read;
+}
+
 bool serial_uart_read_value(float* dst) {
     /* Buffer used to store digits of the input string */
     static char digit_buffer[64];
