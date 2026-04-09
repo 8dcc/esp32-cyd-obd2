@@ -160,9 +160,10 @@ void app_main(void) {
                 LOGE("Failed to build OBD2 request for PID '%s'.", pid_name);
                 continue;
             }
-            serial_bt_write(buf, req_len);
+            elm327_write(&elm_ctx, buf, req_len);
 
-            const size_t resp_len = serial_bt_read(buf, sizeof(buf));
+            const size_t resp_len =
+              elm327_read_response(&elm_ctx, buf, sizeof(buf), 5000);
             if (resp_len == 0) {
                 LOGW("No BT response received for PID '%s'.", pid_name);
                 continue;

@@ -58,7 +58,8 @@ bool elm327_setup(Elm327Ctx* ctx) {
         if (ctx->write((const uint8_t*)cmd, cmd_len) != cmd_len)
             return false;
 
-        const size_t num_read = ctx->read(buf, sizeof(buf) - 1, timeout);
+        const size_t num_read =
+          elm327_read_response(ctx, buf, sizeof(buf) - 1, timeout);
         assert(num_read < sizeof(buf) - 1);
         buf[num_read] = '\0';
 
@@ -72,4 +73,44 @@ bool elm327_setup(Elm327Ctx* ctx) {
     }
 
     return true;
+}
+
+size_t elm327_write(const Elm327Ctx* ctx, const uint8_t* data, size_t len) {
+    assert(ctx != NULL);
+    if (ctx->write == NULL)
+        return 0;
+    return ctx->write(data, len);
+}
+
+size_t elm327_read_response(const Elm327Ctx* ctx,
+                            uint8_t* buf,
+                            size_t len,
+                            uint32_t timeout_ms) {
+    assert(ctx != NULL);
+    assert(buf != NULL && len > 1);
+
+    if (ctx->read == NULL)
+        return 0;
+
+    size_t total = 0;
+
+    while (total < len - 1) {
+        uint8_t chunk[64];
+        const size_t n = ctx->read(chunk, sizeof(chunk), timeout_ms);
+        if (n == 0)
+            break;
+
+        for (size_t i = 0; i < n && total < len - 1; i++) {
+            /* Discard null bytes the ELM327 may occasionally insert */
+            if (chunk[i] == '\0')
+                continue;
+
+            buf[total++] = chunk[i];
+        }
+
+        if (memchr(buf, '>', total) != NULL)
+            break;
+    }
+
+    return total;
 }

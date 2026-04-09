@@ -52,4 +52,21 @@ void elm327_init(Elm327Ctx* ctx,
  */
 bool elm327_setup(Elm327Ctx* ctx);
 
+/*
+ * Write 'len' bytes using the transport function stored in 'ctx'. Returns the
+ * number of bytes written.
+ */
+size_t elm327_write(const Elm327Ctx* ctx, const uint8_t* data, size_t len);
+
+/*
+ * Read a full ELM327 response (up to and including the '>' prompt) into 'buf',
+ * blocking until the prompt is received or 'timeout_ms' elapses. Null bytes
+ * (which the ELM327 may occasionally insert) are silently discarded. Returns
+ * the number of bytes stored in 'buf'.
+ */
+size_t elm327_read_response(const Elm327Ctx* ctx,
+                            uint8_t* buf,
+                            size_t len,
+                            uint32_t timeout_ms);
+
 #endif /* ELM327_H_ */
