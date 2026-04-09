@@ -41,17 +41,17 @@
 #if !defined(__FILE_NAME__)
 #define __FILE_NAME__ __FILE__
 #endif /* !defined(__FILE_NAME__) */
-#define LOGD_HEXDUMP(data, len) debug_hexdump(__FILE_NAME__, data, len);
-#define LOGD(...) ESP_LOGD(__FILE_NAME__, __VA_ARGS__);
-#define LOGI(...) ESP_LOGI(__FILE_NAME__, __VA_ARGS__);
-#define LOGW(...) ESP_LOGW(__FILE_NAME__, __VA_ARGS__);
-#define LOGE(...) ESP_LOGE(__FILE_NAME__, __VA_ARGS__);
+#define LOGD(...)          ESP_LOGD(__FILE_NAME__, __VA_ARGS__);
+#define LOGI(...)          ESP_LOGI(__FILE_NAME__, __VA_ARGS__);
+#define LOGW(...)          ESP_LOGW(__FILE_NAME__, __VA_ARGS__);
+#define LOGE(...)          ESP_LOGE(__FILE_NAME__, __VA_ARGS__);
+#define HEXDUMP(data, len) hexdump(__FILE_NAME__, data, len);
 #endif /* !defined(LOG_DISABLE) */
 
 /*
  * Log a hex dump of 'len' bytes from 'data' at DEBUG level, tagged with 'tag'.
  * Output is formatted as offset, hex bytes, and ASCII representation.
  */
-void debug_hexdump(const char* tag, const uint8_t* data, size_t len);
+void hexdump(const char* tag, const uint8_t* data, size_t len);
 
 #endif /* UTIL_H_ */

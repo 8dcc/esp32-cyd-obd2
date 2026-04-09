@@ -164,11 +164,10 @@ void app_main(void) {
                 LOGW("No BT response received for PID '%s'.", pid_name);
                 continue;
             }
-            LOGD("Response for PID '%s' (%zu bytes):", pid_name, resp_len);
-            LOGD_HEXDUMP(buf, resp_len);
 
             if (!obd_decode_response(pid, buf, resp_len, &obd_values[pid])) {
-                LOGW("Failed to decode OBD2 response for PID '%s'.", pid_name);
+                LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
+                HEXDUMP(buf, resp_len);
                 continue;
             }
 

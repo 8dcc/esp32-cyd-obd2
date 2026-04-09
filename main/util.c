@@ -24,10 +24,10 @@
 
 #include "esp_log.h"
 
-void debug_hexdump(const char* tag, const uint8_t* data, size_t len) {
+void hexdump(const char* tag, const uint8_t* data, size_t len) {
     /*
      * Line format (16 bytes per row):
-     *   "XX XX ... XX    ................"
+     *   "XX XX ... XX  |................|"
      */
     enum { COLS = 16 };
 
@@ -47,7 +47,7 @@ void debug_hexdump(const char* tag, const uint8_t* data, size_t len) {
         }
 
         /* Separator and ASCII */
-        pos += snprintf(line + pos, sizeof(line) - pos, "   ");
+        pos += snprintf(line + pos, sizeof(line) - pos, "  |");
         for (size_t col = 0; col < COLS && row + col < len; col++) {
             const uint8_t b = data[row + col];
             pos += snprintf(line + pos,
@@ -55,7 +55,8 @@ void debug_hexdump(const char* tag, const uint8_t* data, size_t len) {
                             "%c",
                             (b >= 0x20 && b < 0x7F) ? (char)b : '.');
         }
+        pos += snprintf(line + pos, sizeof(line) - pos, "|");
 
-        ESP_LOGD(tag, "%s", line);
+        ESP_LOGI(tag, "%s", line);
     }
 }

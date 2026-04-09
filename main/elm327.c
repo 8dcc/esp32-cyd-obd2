@@ -47,13 +47,15 @@ bool elm327_init(elm327_write_fn write, elm327_read_fn read) {
 
         const size_t num_read = read(buf, sizeof(buf) - 1, timeout);
         assert(num_read < sizeof(buf) - 1);
-        buf[num_read]         = '\0';
+        buf[num_read] = '\0';
 
-        LOGD("elm327_init: response to '%s' (%zu bytes):", cmd, num_read);
-        LOGD_HEXDUMP(buf, num_read);
-
-        if (strstr((const char*)buf, expected) == NULL)
+        if (strstr((const char*)buf, expected) == NULL) {
+            LOGW("Expected response '%s' to ELM327 command '%s', received:",
+                 expected,
+                 cmd);
+            HEXDUMP(buf, num_read);
             return false;
+        }
     }
 
     return true;
