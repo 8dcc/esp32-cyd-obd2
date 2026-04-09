@@ -28,10 +28,28 @@ typedef size_t (*elm327_write_fn)(const uint8_t* data, size_t len);
 typedef size_t (*elm327_read_fn)(uint8_t* buf, size_t len, uint32_t timeout_ms);
 
 /*
- * Initialize the ELM327 adapter by sending the standard AT init sequence
- * through the provided 'write' and 'read' transport functions. Returns true
- * if all commands in the sequence were acknowledged successfully.
+ * Context structure for an ELM327 session. The caller declares this and passes
+ * it to 'elm327_init', which fills in the transport function pointers. All
+ * other 'elm327_*' functions require a pointer to an initialized context.
  */
-bool elm327_init(elm327_write_fn write, elm327_read_fn read);
+typedef struct {
+    elm327_write_fn write;
+    elm327_read_fn read;
+} Elm327Ctx;
+
+/*
+ * Initialize the 'ctx' structure with the provided 'write' and 'read'
+ * transport functions, so it can be passed to subsequent elm327_* calls.
+ */
+void elm327_init(Elm327Ctx* ctx,
+                 elm327_write_fn write,
+                 elm327_read_fn read);
+
+/*
+ * Send the standard AT setup sequence through the transport functions stored
+ * in 'ctx'. Returns true if all commands in the sequence were acknowledged
+ * successfully.
+ */
+bool elm327_setup(Elm327Ctx* ctx);
 
 #endif /* ELM327_H_ */

@@ -127,6 +127,9 @@ void app_main(void) {
         return;
     }
 
+    Elm327Ctx elm_ctx;
+    elm327_init(&elm_ctx, serial_bt_write, serial_bt_read_blocking);
+
     float obd_values[OBD_NUM_PIDS] = { 0 };
     uint8_t buf[64];
 
@@ -140,11 +143,11 @@ void app_main(void) {
             }
             LOGI("Connected to OBD2 adapter.");
 
-            if (!elm327_init(serial_bt_write, serial_bt_read_blocking)) {
-                LOGE("ELM327 initialization failed.");
+            if (!elm327_setup(&elm_ctx)) {
+                LOGE("ELM327 setup failed.");
                 continue;
             }
-            LOGI("Initialized ELM327.");
+            LOGI("ELM327 setup complete.");
         }
 
         for (EObdPid pid = 0; pid < OBD_NUM_PIDS; pid++) {

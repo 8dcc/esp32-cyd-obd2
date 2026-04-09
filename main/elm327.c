@@ -18,6 +18,7 @@
 
 #include "elm327.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "util.h"
@@ -33,7 +34,19 @@ static const struct {
     { "ATSP0\r", "OK",     1000 },
 };
 
-bool elm327_init(elm327_write_fn write, elm327_read_fn read) {
+void elm327_init(Elm327Ctx* ctx, elm327_write_fn write, elm327_read_fn read) {
+    assert(ctx != NULL && write != NULL && read != NULL);
+
+    ctx->write = write;
+    ctx->read  = read;
+}
+
+bool elm327_setup(Elm327Ctx* ctx) {
+    assert(ctx != NULL);
+
+    if (ctx->write == NULL || ctx->read == NULL)
+        return false;
+
     uint8_t buf[64];
 
     for (size_t i = 0; i < LENGTH(INIT_SEQUENCE); i++) {
@@ -42,10 +55,10 @@ bool elm327_init(elm327_write_fn write, elm327_read_fn read) {
         const uint32_t timeout = INIT_SEQUENCE[i].timeout_ms;
 
         const size_t cmd_len = strlen(cmd);
-        if (write((const uint8_t*)cmd, cmd_len) != cmd_len)
+        if (ctx->write((const uint8_t*)cmd, cmd_len) != cmd_len)
             return false;
 
-        const size_t num_read = read(buf, sizeof(buf) - 1, timeout);
+        const size_t num_read = ctx->read(buf, sizeof(buf) - 1, timeout);
         assert(num_read < sizeof(buf) - 1);
         buf[num_read] = '\0';
 
