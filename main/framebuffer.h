@@ -82,4 +82,17 @@ static inline int framebuffer_get_height(const Framebuffer* framebuffer) {
     return framebuffer->height;
 }
 
+/*
+ * Write one pixel at (x, y) with the specified RGB888 'color' into 'fb'.
+ * Out-of-bounds coordinates are silently ignored.
+ */
+static inline void framebuffer_set_pixel(const Framebuffer* fb,
+                                         int x,
+                                         int y,
+                                         uint32_t color) {
+    if (x < 0 || x >= (int)fb->width || y < 0 || y >= (int)fb->height)
+        return;
+    fb->data[fb->width * (size_t)y + (size_t)x] = rgb888_to_rgb565(color);
+}
+
 #endif /* FRAMEBUFFER_H_ */
