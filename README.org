@@ -50,3 +50,21 @@ your computer and flash it with the same =idf.py= script.
 idf.py flash
 # ...
 #+end_src
+
+* Project architecture
+
+The following diagram shows the architecture of the project.
+
+#+begin_src mermaid
+graph TD
+  main --> elm327
+  elm327 --> serial_bluetooth
+
+  main --> obd2
+  obd2 --> elm327
+
+  main --> chart
+  chart -->|framebuffer| render
+
+  main -.-> serial_uart
+#+end_src
