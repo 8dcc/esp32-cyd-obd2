@@ -54,4 +54,23 @@
  */
 void hexdump(const char* tag, const uint8_t* data, size_t len);
 
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Convert an RGB888 (24-bit) color to the RGB565 (16-bit) format expected
+ * by the ILI9341 chip, byte-swapped for the SPI DMA transfer.
+ */
+static inline uint16_t rgb888_to_rgb565(uint32_t rgb888) {
+    const uint8_t r = (rgb888 >> 16) & 0xFF;
+    const uint8_t g = (rgb888 >> 8) & 0xFF;
+    const uint8_t b = rgb888 & 0xFF;
+
+    const uint8_t r5 = (r * 0x1F / 0xFF) & 0x1F;
+    const uint8_t g6 = (g * 0x3F / 0xFF) & 0x3F;
+    const uint8_t b5 = (b * 0x1F / 0xFF) & 0x1F;
+
+    const uint16_t little_endian = (b5 << 11) | (g6 << 5) | r5;
+    return (little_endian >> 8) | (little_endian << 8);
+}
+
 #endif /* UTIL_H_ */
