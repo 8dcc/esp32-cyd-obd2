@@ -37,26 +37,32 @@ void chart_init(ChartCtx* chart_ctx,
     chart_ctx->num_channels = num_channels;
     chart_ctx->history_size = display_width;
     chart_ctx->write_pos    = 0;
-    chart_ctx->min_value    = 0;
-    chart_ctx->max_value    = 0;
 
-    /* Allocate the circular buffer for storing the value history */
-    const size_t circular_buffer_size =
+    /* Allocate the circular buffer and per-channel min/max arrays */
+    const size_t data_size =
       chart_ctx->num_channels * chart_ctx->history_size * sizeof(float);
-    chart_ctx->data = malloc(circular_buffer_size);
-    if (chart_ctx->data == NULL) {
+    const size_t minmax_size = chart_ctx->num_channels * sizeof(float);
+    chart_ctx->data          = malloc(data_size);
+    chart_ctx->min_values    = malloc(minmax_size);
+    chart_ctx->max_values    = malloc(minmax_size);
+    if (chart_ctx->data == NULL || chart_ctx->min_values == NULL ||
+        chart_ctx->max_values == NULL) {
         fprintf(stderr,
-                "Failed to allocate circular buffer for chart (%d channels of "
+                "Failed to allocate chart buffers (%d channels of "
                 "%d history values; %zu bytes)\n",
                 chart_ctx->num_channels,
                 chart_ctx->history_size,
-                circular_buffer_size);
+                data_size);
         abort();
     }
 
     for (size_t i = 0; i < chart_ctx->num_channels * chart_ctx->history_size;
          i++)
         chart_ctx->data[i] = 0.f;
+    for (int i = 0; i < chart_ctx->num_channels; i++) {
+        chart_ctx->min_values[i] = 0.f;
+        chart_ctx->max_values[i] = 0.f;
+    }
 
     /*
      * Initialize the framebuffer, which will be used for rendering the chart
@@ -70,6 +76,14 @@ void chart_destroy(ChartCtx* chart_ctx) {
     if (chart_ctx->data != NULL) {
         free(chart_ctx->data);
         chart_ctx->data = NULL;
+    }
+    if (chart_ctx->min_values != NULL) {
+        free(chart_ctx->min_values);
+        chart_ctx->min_values = NULL;
+    }
+    if (chart_ctx->max_values != NULL) {
+        free(chart_ctx->max_values);
+        chart_ctx->max_values = NULL;
     }
 
     framebuffer_destroy(&chart_ctx->framebuffer);
@@ -104,27 +118,27 @@ void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
 void chart_update_minmax(ChartCtx* chart_ctx) {
     assert(chart_ctx->num_channels > 0);
 
-    float min = chart_ctx->data[0];
-    float max = chart_ctx->data[0];
-
     for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
          cur_channel++) {
-        for (int i = 0; i < chart_ctx->history_size; i++) {
-            const float val =
-              chart_ctx->data[chart_ctx->history_size * cur_channel + i];
-            if (val < min)
-                min = val;
-            if (val > max)
-                max = val;
+        const float* channel_data =
+          &chart_ctx->data[chart_ctx->history_size * cur_channel];
+
+        float min = channel_data[0];
+        float max = channel_data[0];
+        for (int i = 1; i < chart_ctx->history_size; i++) {
+            if (channel_data[i] < min)
+                min = channel_data[i];
+            if (channel_data[i] > max)
+                max = channel_data[i];
         }
+
+        /* Add 10% margin to avoid clipping at edges */
+        const float range  = max - min;
+        const float margin = range * 0.1f;
+
+        chart_ctx->min_values[cur_channel] = min - margin;
+        chart_ctx->max_values[cur_channel] = max + margin;
     }
-
-    /* Add 10% margin to avoid clipping at edges */
-    const float range  = max - min;
-    const float margin = range * 0.1f;
-
-    chart_ctx->min_value = min - margin;
-    chart_ctx->max_value = max + margin;
 }
 
 void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
@@ -142,19 +156,8 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
 
     assert(chart_ctx->num_channels > 0);
 
-    /* Prevent division by zero if all values are identical */
-    float min_value = chart_ctx->min_value;
-    float max_value = chart_ctx->max_value;
-    if (min_value == max_value) {
-        min_value -= 1.0f;
-        max_value += 1.0f;
-    }
-
-    /* Calculate scale factor based on min/max values */
     const int framebuffer_height =
       framebuffer_get_height(&chart_ctx->framebuffer);
-    const float value_range = max_value - min_value;
-    const float scale       = (float)framebuffer_height / value_range;
 
     /* Clear the framebuffer, before redrawing */
     framebuffer_clear(&chart_ctx->framebuffer);
@@ -162,6 +165,17 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
     /* Draw each channel to the framebuffer */
     for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
          cur_channel++) {
+        /* Prevent division by zero if all values in channel are identical */
+        float min_value = chart_ctx->min_values[cur_channel];
+        float max_value = chart_ctx->max_values[cur_channel];
+        if (min_value == max_value) {
+            min_value -= 1.0f;
+            max_value += 1.0f;
+        }
+
+        const float value_range = max_value - min_value;
+        const float scale       = (float)framebuffer_height / value_range;
+
         for (int x = 1; x < chart_ctx->history_size; x++) {
             /* Get indices in circular buffer */
             const int idx_prev =

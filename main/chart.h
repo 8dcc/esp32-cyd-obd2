@@ -37,9 +37,12 @@ typedef struct ChartCtx {
     /* Position in the circular buffer where the next value will be written */
     int write_pos;
 
-    /* Minimum and maximum values in the entire graph, for auto-scaling */
-    float min_value;
-    float max_value;
+    /*
+     * Per-channel minimum and maximum values for auto-scaling. Each points to
+     * an array of 'num_channels' floats, allocated alongside 'data'.
+     */
+    float* min_values;
+    float* max_values;
 
     /* Framebuffer for off-screen rendering */
     Framebuffer framebuffer;
