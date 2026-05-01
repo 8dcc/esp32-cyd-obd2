@@ -16,6 +16,7 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h> /* memset, strtok */
 #include <stdlib.h> /* atof */
@@ -28,7 +29,6 @@
 #include "chart.h"
 #include "draw_text.h"
 #include "fonts.h"
-#include "serial_uart.h"
 #include "serial_bluetooth.h"
 #include "util.h"
 #include "elm327.h"
@@ -38,100 +38,38 @@
  * Display resolution in pixels.
  * The ILI9341 controller supports 320x240 in landscape orientation.
  */
-#define LCD_WIDTH  320 /* Horizontal resolution */
-#define LCD_HEIGHT 240 /* Vertical resolution */
-
-#if 0
-/*
- * TODO: Don't hard-code channel number, obtain from number of rendered OBD2
- * fields.
- */
-#define CHANNEL_NUM 4
+#define LCD_WIDTH  320
+#define LCD_HEIGHT 240
 
 /*
- * ESP-IDF application entry point.
- *
- * Initializes the display and UART, then enters a loop to read CSV data from
- * serial and plot it as a scrolling multi-channel line chart.
+ * Delay in miliseconds for fetching PID data from the OBD2 adapter.
  */
-void app_main(void) {
-    LOGI("Booted ESP32 CYD OBD2.");
+#define FETCH_DELAY_MS 10
 
-    /* Initialize rendering context */
-    RenderCtx render_ctx;
-    render_init(&render_ctx, LCD_WIDTH, LCD_HEIGHT);
-    render_clear(&render_ctx);
-    LOGI("Display initialized: %dx%d", LCD_WIDTH, LCD_HEIGHT);
+/*
+ * Height of the OBD2 HUD row at the top of the screen.
+ */
+#define HUD_HEIGHT ((int)(LCD_HEIGHT / 3.5))
 
-    /* Initialize chart context, which will contain the data being plotted */
-    ChartCtx chart_ctx;
-    chart_init(&chart_ctx,
-               CHANNEL_NUM,
-               render_get_width(&render_ctx),
-               render_get_height(&render_ctx));
-    LOGI("Initialized chart context.");
-
-    /* Initialize serial communication, which will be used to receive data */
-    serial_uart_init();
-    LOGI("Initialized UART serial for data.");
-
-    /*
-     * Array of values read each iteration. It is declared outside of the main
-     * loop, so the old values are stored in case one read fails.
-     */
-    float values[CHANNEL_NUM];
-    for (int i = 0; i < LENGTH(values); i++)
-        values[i] = 0.f;
-
-    for (;;) {
-        /* Read values from serial */
-        for (int i = 0; i < LENGTH(values); i++) {
-            float received_value;
-            if (!serial_uart_read_value(&received_value)) {
-                LOGE("Failed to read serial data in channel #%d\n", i);
-                continue;
-            }
-            values[i] = received_value;
-        }
-
-        /* Push the received values to the chart context */
-        chart_push(&chart_ctx, values, LENGTH(values));
-
-        /* Update auto-scaling of the chart */
-        chart_update_minmax(&chart_ctx);
-
-        /* Draw the chart to the display associated to the render context */
-        chart_render(&chart_ctx, &render_ctx);
-    }
-
-    LOGI("Deinitializing...");
-    chart_destroy(&chart_ctx);
-    render_destroy(&render_ctx);
-}
-#else
 /*
  * MAC address of the target Bluetooth SPP device.
  */
 static const uint8_t TARGET_MAC[6] = { 0x1C, 0x1B, 0xB5, 0x71, 0x80, 0x9E };
 
-/*
- * Delay in miliseconds for fetching PID data from the OBD2 adapter.
- */
-#define FETCH_DELAY_MS 100
-
-/*
- * Height of the OBD2 HUD row at the top of the screen (1/5 of total).
- */
-#define HUD_HEIGHT (LCD_HEIGHT / 5)
+/*----------------------------------------------------------------------------*/
 
 /*
  * Associates an OBD2 PID with the short label displayed above its value in the
- * HUD.
+ * HUD, a flag controlling whether it is plotted in the chart, and the RGB888
+ * color used for both the HUD text and chart line.
  */
 typedef struct RenderedPid {
     EObdPid pid;
     const char* label;
+    uint32_t color;
 } RenderedPid;
+
+/*----------------------------------------------------------------------------*/
 
 /*
  * Render each value from 'values' centered in its own cell, using the label
@@ -155,12 +93,17 @@ static void draw_value_hud(Framebuffer* fb,
                            &FONT_8X16,
                            cx,
                            label_cy,
-                           0xFFFFFF,
+                           rendered_pids[i].color,
                            rendered_pids[i].label);
 
         char val_str[8];
         snprintf(val_str, sizeof(val_str), "%.0f", values[i]);
-        draw_text_centered(fb, &FONT_8X16, cx, value_cy, 0xFFFFFF, val_str);
+        draw_text_centered(fb,
+                           &FONT_8X16,
+                           cx,
+                           value_cy,
+                           rendered_pids[i].color,
+                           val_str);
     }
 
     /* Draw 1px vertical separators between cells */
@@ -181,34 +124,62 @@ static void draw_value_hud(Framebuffer* fb,
 void app_main(void) {
     LOGI("Booted ESP32 CYD OBD2.");
 
-    serial_uart_init();
-    LOGI("UART initialized.");
+    static const RenderedPid rendered_pids[] = {
+        { OBD_PID_RPM, "RPM", 0xFF0000 },
+        { OBD_PID_SPEED, "SPD", 0x00FF00 },
+        { OBD_PID_THROTTLE, "THR", 0x0000FF },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0xFFFF00 },
+        { OBD_PID_ENGINE_LOAD, "LOD", 0xFF00FF },
+        { OBD_PID_COOLANT_TEMP, "CLT", 0x00FFFF },
+    };
+    const size_t hud_num_pids = LENGTH(rendered_pids);
+    const size_t num_plotted  = 5; /* First 5 are plotted into the chart */
 
+    /* Initialize global render context for the entire screen */
     RenderCtx render_ctx;
     render_init(&render_ctx, LCD_WIDTH, LCD_HEIGHT);
     render_clear(&render_ctx);
     LOGI("Display initialized: %dx%d", LCD_WIDTH, LCD_HEIGHT);
 
+    /* Initialize framebuffer for the HUD (numbers on top) */
     Framebuffer hud_fb;
     framebuffer_init(&hud_fb, LCD_WIDTH, HUD_HEIGHT);
     LOGI("HUD framebuffer initialized.");
 
-    static const RenderedPid rendered_pids[] = {
-        { OBD_PID_RPM, "RPM" },         { OBD_PID_SPEED, "SPD" },
-        { OBD_PID_THROTTLE, "THR" },    { OBD_PID_INTAKE_PRESSURE, "MAP" },
-        { OBD_PID_ENGINE_LOAD, "LOD" }, { OBD_PID_COOLANT_TEMP, "CLT" },
-    };
-    const size_t hud_num_pids = LENGTH(rendered_pids);
+    /* Copy chart colors into separate array for the chart initialization */
+    uint32_t chart_colors[num_plotted];
+    for (size_t i = 0; i < num_plotted; i++)
+        chart_colors[i] = rendered_pids[i].color;
+
+    /* Initialize chart context for the graph */
+    ChartCtx chart_ctx;
+    chart_init(&chart_ctx,
+               num_plotted,
+               chart_colors,
+               0,
+               HUD_HEIGHT,
+               LCD_WIDTH,
+               LCD_HEIGHT - HUD_HEIGHT);
+    LOGI("Chart initialized for %d channels.", num_plotted);
 
     if (!serial_bt_init()) {
         LOGE("Failed to initialize Bluetooth.");
         return;
     }
+    LOGI("Initialized Bluetooth.");
 
     Elm327Ctx elm_ctx;
     elm327_init(&elm_ctx, serial_bt_write, serial_bt_read_blocking);
+    LOGI("Initialized ELM327 context.");
 
-    float hud_values[hud_num_pids];
+    /*
+     * NOTE: We can reuse the same array for HUD and chart values, since the
+     * plotted values always come first.
+     */
+    float obd_values[hud_num_pids];
+    for (size_t i = 0; i < hud_num_pids; i++)
+        obd_values[i] = 0.f;
+
     uint8_t buf[64];
 
     for (;;) {
@@ -234,6 +205,7 @@ void app_main(void) {
             const EObdPid pid    = rendered_pids[i].pid;
             const char* pid_name = obd_pid_name(pid);
 
+            /* Build OBD PID request, and send to adapter */
             const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
             if (req_len == 0) {
                 LOGE("Failed to build OBD2 request for PID '%s'.", pid_name);
@@ -241,6 +213,7 @@ void app_main(void) {
             }
             elm327_write(&elm_ctx, buf, req_len);
 
+            /* Read the response from the adapter, with a timeout */
             const size_t resp_len =
               elm327_read_response(&elm_ctx, buf, sizeof(buf), 5000);
             if (resp_len == 0) {
@@ -248,15 +221,21 @@ void app_main(void) {
                 continue;
             }
 
-            if (!obd_decode_response(pid, buf, resp_len, &hud_values[i])) {
+            /* Decode the received response */
+            if (!obd_decode_response(pid, buf, resp_len, &obd_values[i])) {
                 LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
                 HEXDUMP(buf, resp_len);
                 continue;
             }
         }
 
-        draw_value_hud(&hud_fb, rendered_pids, hud_values, hud_num_pids);
+        /* Draw the HUD on top (numeric values) */
+        draw_value_hud(&hud_fb, rendered_pids, obd_values, hud_num_pids);
         render_draw_framebuffer(&render_ctx, &hud_fb, 0, 0);
+
+        /* Plot the first N values into the chart */
+        chart_push(&chart_ctx, obd_values, num_plotted);
+        chart_update_minmax(&chart_ctx);
+        chart_render(&chart_ctx, &render_ctx);
     }
 }
-#endif
