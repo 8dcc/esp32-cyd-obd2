@@ -17,7 +17,6 @@
  */
 
 #include "render.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,6 +29,8 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_ili9341.h"
 #include "esp_heap_caps.h" /* MALLOC_CAP_DMA, MALLOC_CAP_8BIT */
+
+#include "util.h"
 
 /*
  * ESP32-CYD (Cheap Yellow Display) hardware pin definitions.
@@ -105,11 +106,9 @@ static void draw_bitmap_synchronously(const RenderCtx* ctx,
                                       int y1,
                                       const void* data) {
     if (ctx->pending_async_transfers > 0) {
-        fprintf(stderr,
-                "Tried to make a synchronous draw, while another %d "
-                "asynchronous transfers were pending. Waiting for them to "
-                "finish...\n",
-                ctx->pending_async_transfers);
+        LOGW("Tried to make a synchronous draw, while another %d asynchronous "
+             "transfers were pending. Waiting for them to finish...",
+             ctx->pending_async_transfers);
         while (ctx->pending_async_transfers > 0)
             vTaskDelay(10);
     }
@@ -214,9 +213,8 @@ void render_clear(RenderCtx* ctx) {
     const size_t row_buffer_sz = ctx->width * sizeof(uint16_t);
     uint16_t* row_buffer       = malloc(row_buffer_sz);
     if (row_buffer == NULL) {
-        fprintf(stderr,
-                "Failed to allocate row buffer for clearing (%zu bytes)\n",
-                row_buffer_sz);
+        LOGE("Failed to allocate row buffer for clearing (%zu bytes)",
+             row_buffer_sz);
         abort();
     }
     memset(row_buffer, 0x00, row_buffer_sz);

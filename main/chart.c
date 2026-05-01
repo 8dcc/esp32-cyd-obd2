@@ -51,12 +51,11 @@ void chart_init(ChartCtx* chart_ctx,
     chart_ctx->max_values    = malloc(minmax_size);
     if (chart_ctx->data == NULL || chart_ctx->min_values == NULL ||
         chart_ctx->max_values == NULL) {
-        fprintf(stderr,
-                "Failed to allocate chart buffers (%d channels of "
-                "%d history values; %zu bytes)\n",
-                chart_ctx->num_channels,
-                chart_ctx->history_size,
-                data_size);
+        LOGE("Failed to allocate chart buffers (%d channels of %d history "
+             "values; %zu bytes)",
+             chart_ctx->num_channels,
+             chart_ctx->history_size,
+             data_size);
         abort();
     }
 

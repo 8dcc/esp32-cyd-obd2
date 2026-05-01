@@ -19,9 +19,10 @@
 #include "framebuffer.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "util.h"
 
 #include "freertos/FreeRTOS.h"
 
@@ -48,11 +49,10 @@ void framebuffer_init(Framebuffer* framebuffer, size_t width, size_t height) {
       heap_caps_malloc(fb_size, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
 
     if (framebuffer->data == NULL) {
-        fprintf(stderr,
-                "Failed to allocate %zux%zu framebuffer (%zu bytes)\n",
-                framebuffer->width,
-                framebuffer->height,
-                fb_size);
+        LOGE("Failed to allocate %zux%zu framebuffer (%zu bytes)",
+             framebuffer->width,
+             framebuffer->height,
+             fb_size);
         abort();
     }
 
