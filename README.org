@@ -60,13 +60,15 @@ graph TD
   main --> elm327
   elm327 --> serial_bluetooth
 
+  main -.-> serial_uart
+
   main --> obd2
   obd2 --> elm327
 
   main --> chart
   chart -->|framebuffer| render
-
-  main -.-> serial_uart
+  main -->|font| draw_text
+  draw_text -->|framebuffer| render
 #+end_src
 
 * Simulating a bluetooth ELM327 device
