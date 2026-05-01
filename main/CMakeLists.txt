@@ -1,6 +1,6 @@
 idf_component_register(
   SRCS "main.c" "util.c"
-       "render.c" "framebuffer.c" "chart.c" "draw_text.c"
+       "render.c" "framebuffer.c" "chart.c" "draw_text.c" "fonts.c"
        "elm327.c" "obd2.c"
        "serial_uart.c" "serial_bluetooth.c"
   INCLUDE_DIRS "."
