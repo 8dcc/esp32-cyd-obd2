@@ -45,6 +45,9 @@ typedef struct FontDef {
      *    ceil(glyph_width / 8) * glyph_height
      */
     const uint8_t* data;
+
+    /* Number of pixels to leave between characters when rendering the font */
+    short char_spacing;
 } FontDef;
 
 /*----------------------------------------------------------------------------*/

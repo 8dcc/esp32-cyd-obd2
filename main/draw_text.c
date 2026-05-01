@@ -57,7 +57,7 @@ static void draw_text_string(const Framebuffer* fb,
             }
         }
 
-        x += font->glyph_width;
+        x += font->glyph_width + font->char_spacing;
     }
 }
 
@@ -71,8 +71,11 @@ void draw_text_centered(const Framebuffer* fb,
     if (len <= 0)
         return;
 
+    /* Effective width of each glyph/character in pixels */
+    const short char_advance = font->glyph_width + font->char_spacing;
+
     /* Total width taken by the string in pixels */
-    const int total_width = len * font->glyph_width;
+    const int total_width = len * char_advance - font->char_spacing;
 
     /* Calculate top left coordinate of the string after centering */
     const int start_x = cx - total_width / 2;
