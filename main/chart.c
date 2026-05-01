@@ -19,7 +19,6 @@
 #include "chart.h"
 #include <stdint.h>
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "util.h"
@@ -27,6 +26,7 @@
 
 void chart_init(ChartCtx* chart_ctx,
                 int num_channels,
+                const uint32_t* channel_colors,
                 int x,
                 int y,
                 int width,
@@ -42,15 +42,17 @@ void chart_init(ChartCtx* chart_ctx,
     chart_ctx->x            = x;
     chart_ctx->y            = y;
 
-    /* Allocate the circular buffer and per-channel min/max arrays */
+    /* Allocate the circular buffer, color palette, and per-channel min/max */
     const size_t data_size =
       chart_ctx->num_channels * chart_ctx->history_size * sizeof(float);
-    const size_t minmax_size = chart_ctx->num_channels * sizeof(float);
-    chart_ctx->data          = malloc(data_size);
-    chart_ctx->min_values    = malloc(minmax_size);
-    chart_ctx->max_values    = malloc(minmax_size);
-    if (chart_ctx->data == NULL || chart_ctx->min_values == NULL ||
-        chart_ctx->max_values == NULL) {
+    const size_t colors_size  = chart_ctx->num_channels * sizeof(uint32_t);
+    const size_t minmax_size  = chart_ctx->num_channels * sizeof(float);
+    chart_ctx->data           = malloc(data_size);
+    chart_ctx->channel_colors = malloc(colors_size);
+    chart_ctx->min_values     = malloc(minmax_size);
+    chart_ctx->max_values     = malloc(minmax_size);
+    if (chart_ctx->data == NULL || chart_ctx->channel_colors == NULL ||
+        chart_ctx->min_values == NULL || chart_ctx->max_values == NULL) {
         LOGE("Failed to allocate chart buffers (%d channels of %d history "
              "values; %zu bytes)",
              chart_ctx->num_channels,
@@ -63,8 +65,9 @@ void chart_init(ChartCtx* chart_ctx,
          i++)
         chart_ctx->data[i] = 0.f;
     for (int i = 0; i < chart_ctx->num_channels; i++) {
-        chart_ctx->min_values[i] = 0.f;
-        chart_ctx->max_values[i] = 0.f;
+        chart_ctx->channel_colors[i] = channel_colors[i];
+        chart_ctx->min_values[i]     = 0.f;
+        chart_ctx->max_values[i]     = 0.f;
     }
 
     /*
@@ -87,6 +90,10 @@ void chart_destroy(ChartCtx* chart_ctx) {
     if (chart_ctx->max_values != NULL) {
         free(chart_ctx->max_values);
         chart_ctx->max_values = NULL;
+    }
+    if (chart_ctx->channel_colors != NULL) {
+        free(chart_ctx->channel_colors);
+        chart_ctx->channel_colors = NULL;
     }
 
     framebuffer_destroy(&chart_ctx->framebuffer);
@@ -145,18 +152,6 @@ void chart_update_minmax(ChartCtx* chart_ctx) {
 }
 
 void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
-    /* Color palette for different channels */
-    static const uint32_t channel_colors[] = {
-        0xFF0000, /* Red */
-        0x00FF00, /* Green */
-        0x0000FF, /* Blue */
-        0xFFFF00, /* Yellow */
-        0xFF00FF, /* Magenta */
-        0x00FFFF, /* Cyan */
-        0xFFFFFF, /* White */
-        0xFF8800, /* Orange */
-    };
-
     assert(chart_ctx->num_channels > 0);
 
     const int framebuffer_height =
@@ -199,8 +194,7 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
               framebuffer_height - (int)((val_cur - min_value) * scale);
 
             /* Draw line segment */
-            const uint32_t cur_color =
-              channel_colors[cur_channel % LENGTH(channel_colors)];
+            const uint32_t cur_color = chart_ctx->channel_colors[cur_channel];
             framebuffer_draw_line(&chart_ctx->framebuffer,
                                   x - 1,
                                   y_prev,

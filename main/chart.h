@@ -44,6 +44,9 @@ typedef struct ChartCtx {
     float* min_values;
     float* max_values;
 
+    /* Per-channel RGB888 colors for rendering, allocated at init time */
+    uint32_t* channel_colors;
+
     /* Position on the LCD where the chart framebuffer will be drawn */
     int x, y;
 
@@ -63,6 +66,7 @@ typedef struct ChartCtx {
  */
 void chart_init(ChartCtx* ctx,
                 int num_channels,
+                const uint32_t* channel_colors,
                 int x,
                 int y,
                 int width,
