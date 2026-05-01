@@ -125,11 +125,21 @@ static const uint8_t TARGET_MAC[6] = { 0x1C, 0x1B, 0xB5, 0x71, 0x80, 0x9E };
 #define HUD_HEIGHT (LCD_HEIGHT / 5)
 
 /*
- * Render each value from 'values' centered in its own cell, alongside the
- * corresponding label from 'labels'. Both arrays have 'num_pids' elements.
+ * Associates an OBD2 PID with the short label displayed above its value in the
+ * HUD.
+ */
+typedef struct RenderedPid {
+    EObdPid pid;
+    const char* label;
+} RenderedPid;
+
+/*
+ * Render each value from 'values' centered in its own cell, using the label
+ * from the corresponding 'rendered_pids' entry. Both arrays have 'num_values'
+ * elements.
  */
 static void draw_value_hud(Framebuffer* fb,
-                           const char* const* labels,
+                           const RenderedPid* rendered_pids,
                            const float* values,
                            size_t num_values) {
     const int cell_width = LCD_WIDTH / num_values;
@@ -141,7 +151,12 @@ static void draw_value_hud(Framebuffer* fb,
         const int label_cy = HUD_HEIGHT / 4;
         const int value_cy = 3 * HUD_HEIGHT / 4;
 
-        draw_text_centered(fb, &FONT_8X16, cx, label_cy, 0xFFFFFF, labels[i]);
+        draw_text_centered(fb,
+                           &FONT_8X16,
+                           cx,
+                           label_cy,
+                           0xFFFFFF,
+                           rendered_pids[i].label);
 
         char val_str[8];
         snprintf(val_str, sizeof(val_str), "%.0f", values[i]);
@@ -178,15 +193,12 @@ void app_main(void) {
     framebuffer_init(&hud_fb, LCD_WIDTH, HUD_HEIGHT);
     LOGI("HUD framebuffer initialized.");
 
-    static const char* const hud_labels[] = {
-        "RPM", "SPD", "THR", "MAP", "LOD", "CLT",
+    static const RenderedPid rendered_pids[] = {
+        { OBD_PID_RPM, "RPM" },         { OBD_PID_SPEED, "SPD" },
+        { OBD_PID_THROTTLE, "THR" },    { OBD_PID_INTAKE_PRESSURE, "MAP" },
+        { OBD_PID_ENGINE_LOAD, "LOD" }, { OBD_PID_COOLANT_TEMP, "CLT" },
     };
-    static const EObdPid hud_pids[] = {
-        OBD_PID_RPM,         OBD_PID_SPEED,
-        OBD_PID_THROTTLE,    OBD_PID_INTAKE_PRESSURE,
-        OBD_PID_ENGINE_LOAD, OBD_PID_COOLANT_TEMP,
-    };
-    const size_t hud_num_pids = LENGTH(hud_pids);
+    const size_t hud_num_pids = LENGTH(rendered_pids);
 
     if (!serial_bt_init()) {
         LOGE("Failed to initialize Bluetooth.");
@@ -219,7 +231,7 @@ void app_main(void) {
         for (size_t i = 0; i < hud_num_pids; i++) {
             vTaskDelay(pdMS_TO_TICKS(FETCH_DELAY_MS));
 
-            const EObdPid pid    = hud_pids[i];
+            const EObdPid pid    = rendered_pids[i].pid;
             const char* pid_name = obd_pid_name(pid);
 
             const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
@@ -243,7 +255,7 @@ void app_main(void) {
             }
         }
 
-        draw_value_hud(&hud_fb, hud_labels, hud_values, hud_num_pids);
+        draw_value_hud(&hud_fb, rendered_pids, hud_values, hud_num_pids);
         render_draw_framebuffer(&render_ctx, &hud_fb, 0, 0);
     }
 }
