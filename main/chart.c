@@ -24,6 +24,15 @@
 #include "util.h"
 #include "render.h"
 
+/*
+ * Number of pixels between consecutive data points on the X axis. A value
+ * of 1 maps each sample to a single pixel; a value of N spreads each sample
+ * over N pixels, reducing the history size proportionally.
+ *
+ * NOTE: This could be moved into 'ChartCtx' to allow per-instance spacing.
+ */
+#define CHART_POINT_SPACING 5
+
 void chart_init(ChartCtx* chart_ctx,
                 int num_channels,
                 const uint32_t* channel_colors,
@@ -37,7 +46,7 @@ void chart_init(ChartCtx* chart_ctx,
      * Y-axis autoscaling.
      */
     chart_ctx->num_channels = num_channels;
-    chart_ctx->history_size = width;
+    chart_ctx->history_size = width / CHART_POINT_SPACING;
     chart_ctx->write_pos    = 0;
     chart_ctx->x            = x;
     chart_ctx->y            = y;
@@ -207,9 +216,9 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
             /* Draw line segment */
             const uint32_t cur_color = chart_ctx->channel_colors[cur_channel];
             framebuffer_draw_line(&chart_ctx->framebuffer,
-                                  x - 1,
+                                  (x - 1) * CHART_POINT_SPACING,
                                   y_prev,
-                                  x,
+                                  x * CHART_POINT_SPACING,
                                   y_cur,
                                   cur_color);
         }
