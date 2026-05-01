@@ -42,18 +42,13 @@ void chart_init(ChartCtx* chart_ctx,
     chart_ctx->x            = x;
     chart_ctx->y            = y;
 
-    /* Allocate the circular buffer, color palette, and per-channel min/max */
-    const size_t data_size =
-      chart_ctx->num_channels * chart_ctx->history_size * sizeof(float);
-    const size_t colors_size  = chart_ctx->num_channels * sizeof(uint32_t);
-    const size_t minmax_size  = chart_ctx->num_channels * sizeof(float);
-    chart_ctx->data           = malloc(data_size);
-    chart_ctx->channel_colors = malloc(colors_size);
-    chart_ctx->min_values     = malloc(minmax_size);
-    chart_ctx->max_values     = malloc(minmax_size);
-    if (chart_ctx->data == NULL || chart_ctx->channel_colors == NULL ||
-        chart_ctx->min_values == NULL || chart_ctx->max_values == NULL) {
-        LOGE("Failed to allocate chart buffers (%d channels of %d history "
+    /* Allocate the circular buffer */
+    const size_t data_elements =
+      chart_ctx->num_channels * chart_ctx->history_size;
+    const size_t data_size = data_elements * sizeof(float);
+    chart_ctx->data        = malloc(data_size);
+    if (chart_ctx->data == NULL) {
+        LOGE("Failed to allocate chart buffer (%d channels of %d history "
              "values; %zu bytes)",
              chart_ctx->num_channels,
              chart_ctx->history_size,
@@ -61,9 +56,25 @@ void chart_init(ChartCtx* chart_ctx,
         abort();
     }
 
-    for (size_t i = 0; i < chart_ctx->num_channels * chart_ctx->history_size;
-         i++)
+    /* TODO: Perhaps try to reduce heap usage */
+    const size_t colors_size  = chart_ctx->num_channels * sizeof(uint32_t);
+    chart_ctx->channel_colors = malloc(colors_size);
+    if (chart_ctx->channel_colors == NULL) {
+        LOGE("Failed to allocate color palette (%zu bytes)", colors_size);
+        abort();
+    }
+
+    const size_t minmax_size = chart_ctx->num_channels * sizeof(float);
+    chart_ctx->min_values    = malloc(minmax_size);
+    chart_ctx->max_values    = malloc(minmax_size);
+    if (chart_ctx->min_values == NULL || chart_ctx->max_values == NULL) {
+        LOGE("Failed to allocate min/max arrays (%zu bytes)", minmax_size * 2);
+        abort();
+    }
+
+    for (size_t i = 0; i < data_elements; i++)
         chart_ctx->data[i] = 0.f;
+
     for (int i = 0; i < chart_ctx->num_channels; i++) {
         chart_ctx->channel_colors[i] = channel_colors[i];
         chart_ctx->min_values[i]     = 0.f;
