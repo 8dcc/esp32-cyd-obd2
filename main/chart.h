@@ -44,6 +44,9 @@ typedef struct ChartCtx {
     float* min_values;
     float* max_values;
 
+    /* Position on the LCD where the chart framebuffer will be drawn */
+    int x, y;
+
     /* Framebuffer for off-screen rendering */
     Framebuffer framebuffer;
 } ChartCtx;
@@ -60,8 +63,10 @@ typedef struct ChartCtx {
  */
 void chart_init(ChartCtx* ctx,
                 int num_channels,
-                int display_width,
-                int display_height);
+                int x,
+                int y,
+                int width,
+                int height);
 
 /*
  * Deinitialize a chart context, freeing its necessary members. This function

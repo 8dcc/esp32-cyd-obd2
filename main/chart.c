@@ -27,16 +27,20 @@
 
 void chart_init(ChartCtx* chart_ctx,
                 int num_channels,
-                int display_width,
-                int display_height) {
+                int x,
+                int y,
+                int width,
+                int height) {
     /*
      * In this chart, since we have enough memory, the full value history will
-     * be kept, and renderized each frame. This enables useful features, such as
+     * be kept, and rendered each frame. This enables useful features, such as
      * Y-axis autoscaling.
      */
     chart_ctx->num_channels = num_channels;
-    chart_ctx->history_size = display_width;
+    chart_ctx->history_size = width;
     chart_ctx->write_pos    = 0;
+    chart_ctx->x            = x;
+    chart_ctx->y            = y;
 
     /* Allocate the circular buffer and per-channel min/max arrays */
     const size_t data_size =
@@ -69,7 +73,7 @@ void chart_init(ChartCtx* chart_ctx,
      * into the display. Again, since we have enough memory, we allocate a full
      * display framebuffer, which will be cleared and re-drawn each frame.
      */
-    framebuffer_init(&chart_ctx->framebuffer, display_width, display_height);
+    framebuffer_init(&chart_ctx->framebuffer, width, height);
 }
 
 void chart_destroy(ChartCtx* chart_ctx) {
@@ -211,5 +215,8 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
      * Draw the entire framebuffer we just filled into the LCD, filling it
      * entirely.
      */
-    render_draw_framebuffer(render_ctx, &chart_ctx->framebuffer, 0, 0);
+    render_draw_framebuffer(render_ctx,
+                            &chart_ctx->framebuffer,
+                            chart_ctx->x,
+                            chart_ctx->y);
 }
