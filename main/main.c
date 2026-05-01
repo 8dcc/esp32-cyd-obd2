@@ -24,7 +24,10 @@
 #include "freertos/task.h"
 
 #include "render.h"
+#include "framebuffer.h"
 #include "chart.h"
+#include "draw_text.h"
+#include "fonts.h"
 #include "serial_uart.h"
 #include "serial_bluetooth.h"
 #include "util.h"
@@ -116,11 +119,74 @@ static const uint8_t TARGET_MAC[6] = { 0x1C, 0x1B, 0xB5, 0x71, 0x80, 0x9E };
  */
 #define FETCH_DELAY_MS 100
 
+/*
+ * Height of the OBD2 HUD row at the top of the screen (1/5 of total).
+ */
+#define HUD_HEIGHT (LCD_HEIGHT / 5)
+
+/*
+ * Render each value from 'values' centered in its own cell, alongside the
+ * corresponding label from 'labels'. Both arrays have 'num_pids' elements.
+ */
+static void draw_value_hud(Framebuffer* fb,
+                           const char* const* labels,
+                           const float* values,
+                           size_t num_values) {
+    const int cell_width = LCD_WIDTH / num_values;
+
+    framebuffer_clear(fb);
+
+    for (int i = 0; i < num_values; i++) {
+        const int cx       = (i * cell_width) + (cell_width / 2);
+        const int label_cy = HUD_HEIGHT / 4;
+        const int value_cy = 3 * HUD_HEIGHT / 4;
+
+        draw_text_centered(fb, &FONT_8X16, cx, label_cy, 0xFFFFFF, labels[i]);
+
+        char val_str[8];
+        snprintf(val_str, sizeof(val_str), "%.0f", values[i]);
+        draw_text_centered(fb, &FONT_8X16, cx, value_cy, 0xFFFFFF, val_str);
+    }
+
+    /* Draw 1px vertical separators between cells */
+    for (int i = 1; i < num_values; i++) {
+        const int x = i * cell_width;
+        framebuffer_draw_line(fb, x, 0, x, HUD_HEIGHT - 1, 0x404040);
+    }
+
+    /* Draw 1px horizontal line along the bottom of the HUD row */
+    framebuffer_draw_line(fb,
+                          0,
+                          HUD_HEIGHT - 1,
+                          LCD_WIDTH - 1,
+                          HUD_HEIGHT - 1,
+                          0x404040);
+}
+
 void app_main(void) {
     LOGI("Booted ESP32 CYD OBD2.");
 
     serial_uart_init();
     LOGI("UART initialized.");
+
+    RenderCtx render_ctx;
+    render_init(&render_ctx, LCD_WIDTH, LCD_HEIGHT);
+    render_clear(&render_ctx);
+    LOGI("Display initialized: %dx%d", LCD_WIDTH, LCD_HEIGHT);
+
+    Framebuffer hud_fb;
+    framebuffer_init(&hud_fb, LCD_WIDTH, HUD_HEIGHT);
+    LOGI("HUD framebuffer initialized.");
+
+    static const char* const hud_labels[] = {
+        "RPM", "SPD", "THR", "MAP", "LOD", "CLT",
+    };
+    static const EObdPid hud_pids[] = {
+        OBD_PID_RPM,         OBD_PID_SPEED,
+        OBD_PID_THROTTLE,    OBD_PID_INTAKE_PRESSURE,
+        OBD_PID_ENGINE_LOAD, OBD_PID_COOLANT_TEMP,
+    };
+    const size_t hud_num_pids = LENGTH(hud_pids);
 
     if (!serial_bt_init()) {
         LOGE("Failed to initialize Bluetooth.");
@@ -130,7 +196,7 @@ void app_main(void) {
     Elm327Ctx elm_ctx;
     elm327_init(&elm_ctx, serial_bt_write, serial_bt_read_blocking);
 
-    float obd_values[OBD_NUM_PIDS] = { 0 };
+    float hud_values[hud_num_pids];
     uint8_t buf[64];
 
     for (;;) {
@@ -150,9 +216,10 @@ void app_main(void) {
             LOGI("ELM327 setup complete.");
         }
 
-        for (EObdPid pid = 0; pid < OBD_NUM_PIDS; pid++) {
+        for (size_t i = 0; i < hud_num_pids; i++) {
             vTaskDelay(pdMS_TO_TICKS(FETCH_DELAY_MS));
 
+            const EObdPid pid    = hud_pids[i];
             const char* pid_name = obd_pid_name(pid);
 
             const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
@@ -169,21 +236,15 @@ void app_main(void) {
                 continue;
             }
 
-            if (!obd_decode_response(pid, buf, resp_len, &obd_values[pid])) {
+            if (!obd_decode_response(pid, buf, resp_len, &hud_values[i])) {
                 LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
                 HEXDUMP(buf, resp_len);
                 continue;
             }
-
-            /* TODO: Display on screen, plot, etc. */
-            char msg[64];
-            const int len = snprintf(msg,
-                                     sizeof(msg),
-                                     "%s: %.1f\n",
-                                     pid_name,
-                                     obd_values[pid]);
-            serial_uart_write((const uint8_t*)msg, (size_t)len);
         }
+
+        draw_value_hud(&hud_fb, hud_labels, hud_values, hud_num_pids);
+        render_draw_framebuffer(&render_ctx, &hud_fb, 0, 0);
     }
 }
 #endif
