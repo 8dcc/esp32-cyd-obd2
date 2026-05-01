@@ -125,10 +125,10 @@ void app_main(void) {
     LOGI("Booted ESP32 CYD OBD2.");
 
     static const RenderedPid rendered_pids[] = {
-        { OBD_PID_RPM, "RPM", 0xFF0000 },
-        { OBD_PID_SPEED, "SPD", 0x00FF00 },
-        { OBD_PID_THROTTLE, "THR", 0x0000FF },
-        { OBD_PID_INTAKE_PRESSURE, "MAP", 0xFFFF00 },
+        { OBD_PID_RPM, "RPM", 0x00FF00 },
+        { OBD_PID_SPEED, "SPD", 0xFF0000 },
+        { OBD_PID_THROTTLE, "THR", 0xFFFF00 },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x0000FF },
         { OBD_PID_ENGINE_LOAD, "LOD", 0xFF00FF },
         { OBD_PID_COOLANT_TEMP, "CLT", 0x00FFFF },
     };
