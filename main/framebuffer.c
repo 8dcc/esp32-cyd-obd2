@@ -25,6 +25,7 @@
 #include "util.h"
 
 #include "freertos/FreeRTOS.h"
+#include "esp_heap_caps.h" /* heap_caps_malloc, heap_caps_get_free_size */
 
 /*
  * Clamp the specified number N to a minimum and maximum value.
@@ -49,10 +50,12 @@ void framebuffer_init(Framebuffer* framebuffer, size_t width, size_t height) {
       heap_caps_malloc(fb_size, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
 
     if (framebuffer->data == NULL) {
-        LOGE("Failed to allocate %zux%zu framebuffer (%zu bytes)",
+        LOGE("Failed to allocate %zux%zu framebuffer (%zu bytes); "
+             "largest contiguous DMA block is %zu bytes",
              framebuffer->width,
              framebuffer->height,
-             fb_size);
+             fb_size,
+             heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_8BIT));
         abort();
     }
 
