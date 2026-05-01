@@ -68,3 +68,47 @@ graph TD
 
   main -.-> serial_uart
 #+end_src
+
+* Simulating a bluetooth ELM327 device
+
+This repository ships with an ELM327 emulator script, which can be used to test
+and develop the ESP32-CYD firmware without a real OBD2 adapter connected to a
+car. This is intended for a Linux machine with BlueZ.
+
+First, ensure that your computer has bluetooth enabled. Then, from =bluetoothctl=,
+set the computer as discoverable and pairable.
+
+#+begin_src
+$ systemctl start bluetooth.service
+
+$ bluetoothctl
+
+[bluetoothctl]> discoverable on
+Changing discoverable on succeeded
+
+[bluetoothctl]> pairable on
+Changing pairable on succeeded
+#+end_src
+
+Then, run the =elm327_mock.py= script.
+
+#+begin_src
+$ python3 scripts/elm327_mock.py
+#+end_src
+
+Recompile the ESP32 CYD firmware with the MAC address of your computer, which
+can be obtained from:
+
+#+begin_src
+$ bluetoothctl show | grep "Controller"
+Controller 11:22:33:44:55:66 (public)
+#+end_src
+
+Then, once the ESP32 tries to connect, accept the pairing request.
+
+#+begin_src
+Request authorization
+[agent] Accept pairing (yes/no): yes
+[CHG] Device 77:88:99:AA:BB:CC Paired: yes
+[ESP32]>
+#+end_src
