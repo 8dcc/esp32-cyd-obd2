@@ -22,30 +22,35 @@
 #include "render.h"
 
 /*
+ * Structure representing the state of a single chart channel.
+ */
+typedef struct ChartChannel {
+    /* Circular buffer of 'history_size' sample values */
+    float* data;
+
+    /* Minimum and maximum values for auto-scaling */
+    float min_value;
+    float max_value;
+
+    /* RGB888 color for rendering */
+    uint32_t color;
+} ChartChannel;
+
+/*
  * Structure representing the context for a multi-channel scrolling chart.
  */
 typedef struct ChartCtx {
     /*
-     * Pointer to an array of 'num_channels' arrays, each with 'history_size'
-     * values. Each of these arrays will be used as a circular buffer with the
-     * actual data to be plotted.
+     * Array of 'num_channels' channel structures. Each channel owns its own
+     * heap-allocated 'data' buffer of 'history_size' floats, used as a
+     * circular buffer.
      */
-    float* data;
+    ChartChannel* channels;
     int num_channels;
     int history_size;
 
     /* Position in the circular buffer where the next value will be written */
     int write_pos;
-
-    /*
-     * Per-channel minimum and maximum values for auto-scaling. Each points to
-     * an array of 'num_channels' floats, allocated alongside 'data'.
-     */
-    float* min_values;
-    float* max_values;
-
-    /* Per-channel RGB888 colors for rendering, allocated at init time */
-    uint32_t* channel_colors;
 
     /* Position on the LCD where the chart framebuffer will be drawn */
     int x, y;

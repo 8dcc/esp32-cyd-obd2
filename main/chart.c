@@ -51,43 +51,31 @@ void chart_init(ChartCtx* chart_ctx,
     chart_ctx->x            = x;
     chart_ctx->y            = y;
 
-    /* Allocate the circular buffer */
-    const size_t data_elements =
-      chart_ctx->num_channels * chart_ctx->history_size;
-    const size_t data_size = data_elements * sizeof(float);
-    chart_ctx->data        = malloc(data_size);
-    if (chart_ctx->data == NULL) {
-        LOGE("Failed to allocate chart buffer (%d channels of %d history "
-             "values; %zu bytes)",
-             chart_ctx->num_channels,
-             chart_ctx->history_size,
-             data_size);
+    const size_t channels_size = num_channels * sizeof(ChartChannel);
+    chart_ctx->channels        = malloc(channels_size);
+    if (chart_ctx->channels == NULL) {
+        LOGE("Failed to allocate channel array (%zu bytes)", channels_size);
         abort();
     }
 
-    /* TODO: Perhaps try to reduce heap usage */
-    const size_t colors_size  = chart_ctx->num_channels * sizeof(uint32_t);
-    chart_ctx->channel_colors = malloc(colors_size);
-    if (chart_ctx->channel_colors == NULL) {
-        LOGE("Failed to allocate color palette (%zu bytes)", colors_size);
-        abort();
-    }
+    const size_t data_size = chart_ctx->history_size * sizeof(float);
+    for (int i = 0; i < num_channels; i++) {
+        ChartChannel* ch = &chart_ctx->channels[i];
 
-    const size_t minmax_size = chart_ctx->num_channels * sizeof(float);
-    chart_ctx->min_values    = malloc(minmax_size);
-    chart_ctx->max_values    = malloc(minmax_size);
-    if (chart_ctx->min_values == NULL || chart_ctx->max_values == NULL) {
-        LOGE("Failed to allocate min/max arrays (%zu bytes)", minmax_size * 2);
-        abort();
-    }
+        ch->data = malloc(data_size);
+        if (ch->data == NULL) {
+            LOGE("Failed to allocate data buffer for channel %d (%zu bytes)",
+                 i,
+                 data_size);
+            abort();
+        }
 
-    for (size_t i = 0; i < data_elements; i++)
-        chart_ctx->data[i] = 0.f;
+        for (int j = 0; j < chart_ctx->history_size; j++)
+            ch->data[j] = 0.f;
 
-    for (int i = 0; i < chart_ctx->num_channels; i++) {
-        chart_ctx->channel_colors[i] = channel_colors[i];
-        chart_ctx->min_values[i]     = 0.f;
-        chart_ctx->max_values[i]     = 0.f;
+        ch->min_value = 0.f;
+        ch->max_value = 0.f;
+        ch->color     = channel_colors[i];
     }
 
     /*
@@ -99,21 +87,13 @@ void chart_init(ChartCtx* chart_ctx,
 }
 
 void chart_destroy(ChartCtx* chart_ctx) {
-    if (chart_ctx->data != NULL) {
-        free(chart_ctx->data);
-        chart_ctx->data = NULL;
-    }
-    if (chart_ctx->min_values != NULL) {
-        free(chart_ctx->min_values);
-        chart_ctx->min_values = NULL;
-    }
-    if (chart_ctx->max_values != NULL) {
-        free(chart_ctx->max_values);
-        chart_ctx->max_values = NULL;
-    }
-    if (chart_ctx->channel_colors != NULL) {
-        free(chart_ctx->channel_colors);
-        chart_ctx->channel_colors = NULL;
+    if (chart_ctx->channels != NULL) {
+        for (int i = 0; i < chart_ctx->num_channels; i++)
+            if (chart_ctx->channels[i].data != NULL)
+                free(chart_ctx->channels[i].data);
+
+        free(chart_ctx->channels);
+        chart_ctx->channels = NULL;
     }
 
     framebuffer_destroy(&chart_ctx->framebuffer);
@@ -127,12 +107,8 @@ void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
      * Write each value from the received array into the circular buffer of the
      * corresponding channel.
      */
-    for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
-         cur_channel++) {
-        const size_t raw_data_idx =
-          chart_ctx->history_size * cur_channel + chart_ctx->write_pos;
-        chart_ctx->data[raw_data_idx] = values[cur_channel];
-    }
+    for (int i = 0; i < chart_ctx->num_channels; i++)
+        chart_ctx->channels[i].data[chart_ctx->write_pos] = values[i];
 
     /* Advance write position */
     chart_ctx->write_pos++;
@@ -148,26 +124,30 @@ void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
 void chart_update_minmax(ChartCtx* chart_ctx) {
     assert(chart_ctx->num_channels > 0);
 
-    for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
-         cur_channel++) {
-        const float* channel_data =
-          &chart_ctx->data[chart_ctx->history_size * cur_channel];
+    for (int i = 0; i < chart_ctx->num_channels; i++) {
+        ChartChannel* cur_channel = &chart_ctx->channels[i];
 
-        float min = channel_data[0];
-        float max = channel_data[0];
+        float min = cur_channel->data[0];
+        float max = cur_channel->data[0];
         for (int i = 1; i < chart_ctx->history_size; i++) {
-            if (channel_data[i] < min)
-                min = channel_data[i];
-            if (channel_data[i] > max)
-                max = channel_data[i];
+            if (cur_channel->data[i] < min)
+                min = cur_channel->data[i];
+            if (cur_channel->data[i] > max)
+                max = cur_channel->data[i];
         }
 
-        /* Add 10% margin to avoid clipping at edges */
+        /*
+         * Add 10% margin to avoid clipping at edges
+         *
+         * TODO: Shouldn't we have zero "padding" on the graph itself, and add
+         * actual "margin" to the render coordinates? The current approach
+         * causes some allocated chart bytes to always be black.
+         */
         const float range  = max - min;
         const float margin = range * 0.1f;
 
-        chart_ctx->min_values[cur_channel] = min - margin;
-        chart_ctx->max_values[cur_channel] = max + margin;
+        cur_channel->min_value = min - margin;
+        cur_channel->max_value = max + margin;
     }
 }
 
@@ -181,11 +161,12 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
     framebuffer_clear(&chart_ctx->framebuffer);
 
     /* Draw each channel to the framebuffer */
-    for (int cur_channel = 0; cur_channel < chart_ctx->num_channels;
-         cur_channel++) {
+    for (int i = 0; i < chart_ctx->num_channels; i++) {
+        const ChartChannel* cur_channel = &chart_ctx->channels[i];
+
         /* Prevent division by zero if all values in channel are identical */
-        float min_value = chart_ctx->min_values[cur_channel];
-        float max_value = chart_ctx->max_values[cur_channel];
+        float min_value = cur_channel->min_value;
+        float max_value = cur_channel->max_value;
         if (min_value == max_value) {
             min_value -= 1.0f;
             max_value += 1.0f;
@@ -202,10 +183,8 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
               (chart_ctx->write_pos + x) % chart_ctx->history_size;
 
             /* Get values and scale to screen coordinates */
-            const float val_prev =
-              chart_ctx->data[chart_ctx->history_size * cur_channel + idx_prev];
-            const float val_cur =
-              chart_ctx->data[chart_ctx->history_size * cur_channel + idx_cur];
+            const float val_prev = cur_channel->data[idx_prev];
+            const float val_cur  = cur_channel->data[idx_cur];
 
             /* Convert to screen Y coordinates (inverted, 0 at top) */
             const int y_prev =
@@ -214,13 +193,12 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
               framebuffer_height - (int)((val_cur - min_value) * scale);
 
             /* Draw line segment */
-            const uint32_t cur_color = chart_ctx->channel_colors[cur_channel];
             framebuffer_draw_line(&chart_ctx->framebuffer,
                                   (x - 1) * CHART_POINT_SPACING,
                                   y_prev,
                                   x * CHART_POINT_SPACING,
                                   y_cur,
-                                  cur_color);
+                                  cur_channel->color);
         }
     }
 
