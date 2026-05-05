@@ -49,7 +49,7 @@
 /*
  * Height of the OBD2 HUD row at the top of the screen.
  */
-#define HUD_HEIGHT ((int)(LCD_HEIGHT / 3.5))
+#define HUD_HEIGHT ((int)(LCD_HEIGHT / 4))
 
 /*
  * Vertical padding (in pixels) added above and below the chart area, so that
