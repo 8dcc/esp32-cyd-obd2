@@ -136,18 +136,8 @@ void chart_update_minmax(ChartCtx* chart_ctx) {
                 max = cur_channel->data[i];
         }
 
-        /*
-         * Add 10% margin to avoid clipping at edges
-         *
-         * TODO: Shouldn't we have zero "padding" on the graph itself, and add
-         * actual "margin" to the render coordinates? The current approach
-         * causes some allocated chart bytes to always be black.
-         */
-        const float range  = max - min;
-        const float margin = range * 0.1f;
-
-        cur_channel->min_value = min - margin;
-        cur_channel->max_value = max + margin;
+        cur_channel->min_value = min;
+        cur_channel->max_value = max;
     }
 }
 

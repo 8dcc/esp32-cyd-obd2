@@ -52,6 +52,12 @@
 #define HUD_HEIGHT ((int)(LCD_HEIGHT / 3.5))
 
 /*
+ * Vertical padding (in pixels) added above and below the chart area, so that
+ * plotted lines have room to breathe near the top and bottom edges.
+ */
+#define CHART_PADDING 5
+
+/*
  * MAC address of the target Bluetooth SPP device.
  */
 static const uint8_t TARGET_MAC[6] = { 0x1C, 0x1B, 0xB5, 0x71, 0x80, 0x9E };
@@ -157,9 +163,9 @@ void app_main(void) {
                num_plotted,
                chart_colors,
                0,
-               HUD_HEIGHT,
+               HUD_HEIGHT + CHART_PADDING,
                LCD_WIDTH,
-               LCD_HEIGHT - HUD_HEIGHT);
+               LCD_HEIGHT - HUD_HEIGHT - 2 * CHART_PADDING);
     LOGI("Chart initialized for %d channels.", num_plotted);
 
     if (!serial_bt_init()) {
