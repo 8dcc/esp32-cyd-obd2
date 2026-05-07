@@ -221,6 +221,8 @@ void render_clear(RenderCtx* ctx) {
 
     for (int y = 0; y < ctx->height; y++)
         draw_bitmap_asynchronously(ctx, 0, y, ctx->width, y + 1, row_buffer);
+
+    free(row_buffer);
 }
 
 void render_draw_framebuffer(const RenderCtx* ctx,
