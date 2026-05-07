@@ -129,11 +129,11 @@ void chart_update_minmax(ChartCtx* chart_ctx) {
 
         float min = cur_channel->data[0];
         float max = cur_channel->data[0];
-        for (int i = 1; i < chart_ctx->history_size; i++) {
-            if (cur_channel->data[i] < min)
-                min = cur_channel->data[i];
-            if (cur_channel->data[i] > max)
-                max = cur_channel->data[i];
+        for (int j = 1; j < chart_ctx->history_size; j++) {
+            if (cur_channel->data[j] < min)
+                min = cur_channel->data[j];
+            if (cur_channel->data[j] > max)
+                max = cur_channel->data[j];
         }
 
         cur_channel->min_value = min;
