@@ -241,7 +241,6 @@ void app_main(void) {
 
         /* Plot the first N values into the chart */
         chart_push(&chart_ctx, obd_values, num_plotted);
-        chart_update_minmax(&chart_ctx);
         chart_render(&chart_ctx, &render_ctx);
     }
 }

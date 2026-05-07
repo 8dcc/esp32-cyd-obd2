@@ -28,10 +28,6 @@ typedef struct ChartChannel {
     /* Circular buffer of 'history_size' sample values */
     float* data;
 
-    /* Minimum and maximum values for auto-scaling */
-    float min_value;
-    float max_value;
-
     /* RGB888 color for rendering */
     uint32_t color;
 } ChartChannel;
@@ -90,16 +86,6 @@ void chart_destroy(ChartCtx* ctx);
  * specified when calling 'chart_init'.
  */
 void chart_push(ChartCtx* ctx, const float* values, int num_values);
-
-/*
- * Update the minimum and maximum stored values of the specified chart context,
- * based on the current data.
- *
- * TODO: Does this need to be exposed? Couldn't it be a static function called
- * by 'chart_render'? Are the 'min_value' and 'max_value' members of 'ChartCtx'
- * even needed?
- */
-void chart_update_minmax(ChartCtx* ctx);
 
 /*
  * Render all data in the specified chart context into the display referenced by

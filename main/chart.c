@@ -33,6 +33,27 @@
  */
 #define CHART_POINT_SPACING 5
 
+/*----------------------------------------------------------------------------*/
+
+/* Compute the min and max values in 'ch' across 'history_size' samples */
+static void chart_get_minmax(const ChartChannel* ch,
+                             int history_size,
+                             float* min_out,
+                             float* max_out) {
+    float min = ch->data[0];
+    float max = ch->data[0];
+    for (int j = 1; j < history_size; j++) {
+        if (ch->data[j] < min)
+            min = ch->data[j];
+        if (ch->data[j] > max)
+            max = ch->data[j];
+    }
+    *min_out = min;
+    *max_out = max;
+}
+
+/*----------------------------------------------------------------------------*/
+
 void chart_init(ChartCtx* chart_ctx,
                 int num_channels,
                 const uint32_t* channel_colors,
@@ -73,9 +94,7 @@ void chart_init(ChartCtx* chart_ctx,
         for (int j = 0; j < chart_ctx->history_size; j++)
             ch->data[j] = 0.f;
 
-        ch->min_value = 0.f;
-        ch->max_value = 0.f;
-        ch->color     = channel_colors[i];
+        ch->color = channel_colors[i];
     }
 
     /*
@@ -116,31 +135,6 @@ void chart_push(ChartCtx* chart_ctx, const float* values, int num_values) {
         chart_ctx->write_pos = 0;
 }
 
-/*
- * TODO: Possibly make static and call from 'chart_render'.
- * TODO: Possibly return values, rather than writing them into the context
- * structure.
- */
-void chart_update_minmax(ChartCtx* chart_ctx) {
-    assert(chart_ctx->num_channels > 0);
-
-    for (int i = 0; i < chart_ctx->num_channels; i++) {
-        ChartChannel* cur_channel = &chart_ctx->channels[i];
-
-        float min = cur_channel->data[0];
-        float max = cur_channel->data[0];
-        for (int j = 1; j < chart_ctx->history_size; j++) {
-            if (cur_channel->data[j] < min)
-                min = cur_channel->data[j];
-            if (cur_channel->data[j] > max)
-                max = cur_channel->data[j];
-        }
-
-        cur_channel->min_value = min;
-        cur_channel->max_value = max;
-    }
-}
-
 void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
     assert(chart_ctx->num_channels > 0);
 
@@ -154,9 +148,14 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
     for (int i = 0; i < chart_ctx->num_channels; i++) {
         const ChartChannel* cur_channel = &chart_ctx->channels[i];
 
+        /* Get the min/max values for the current channel */
+        float min_value, max_value;
+        chart_get_minmax(cur_channel,
+                         chart_ctx->history_size,
+                         &min_value,
+                         &max_value);
+
         /* Prevent division by zero if all values in channel are identical */
-        float min_value = cur_channel->min_value;
-        float max_value = cur_channel->max_value;
         if (min_value == max_value) {
             min_value -= 1.0f;
             max_value += 1.0f;
