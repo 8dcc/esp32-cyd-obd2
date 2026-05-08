@@ -87,12 +87,12 @@ static inline int framebuffer_get_height(const Framebuffer* framebuffer) {
  * Out-of-bounds coordinates are silently ignored.
  */
 static inline void framebuffer_set_pixel(const Framebuffer* fb,
-                                         int x,
-                                         int y,
+                                         size_t x,
+                                         size_t y,
                                          uint32_t color) {
-    if (x < 0 || x >= (int)fb->width || y < 0 || y >= (int)fb->height)
+    if (x < 0 || x >= fb->width || y < 0 || y >= fb->height)
         return;
-    fb->data[fb->width * (size_t)y + (size_t)x] = rgb888_to_rgb565(color);
+    fb->data[fb->width * y + x] = rgb888_to_rgb565(color);
 }
 
 #endif /* FRAMEBUFFER_H_ */
