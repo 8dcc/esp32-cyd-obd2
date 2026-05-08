@@ -131,12 +131,21 @@ void app_main(void) {
     LOGI("Booted ESP32 CYD OBD2.");
 
     static const RenderedPid rendered_pids[] = {
-        { OBD_PID_RPM, "RPM", 0x00FF00 },
-        { OBD_PID_SPEED, "SPD", 0xFF0000 },
-        { OBD_PID_THROTTLE, "THR", 0xFFFF00 },
-        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x0000FF },
-        { OBD_PID_ENGINE_LOAD, "LOD", 0xFF00FF },
-        { OBD_PID_COOLANT_TEMP, "CLT", 0x00FFFF },
+#if 1 /* Pastel color palette */
+        { OBD_PID_RPM, "RPM", 0x70FF70 },
+        { OBD_PID_SPEED, "SPD", 0xFF7070 },
+        { OBD_PID_THROTTLE, "THR", 0xFFFF70 },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x7070FF },
+        { OBD_PID_ENGINE_LOAD, "LOD", 0xFF70FF },
+        { OBD_PID_COOLANT_TEMP, "CLT", 0x70FFFF },
+#else /* Neon color palette */
+        { OBD_PID_RPM, "RPM", 0x39FF14 },
+        { OBD_PID_SPEED, "SPD", 0xFF3C3C },
+        { OBD_PID_THROTTLE, "THR", 0xFFD700 },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x5B9EFF },
+        { OBD_PID_ENGINE_LOAD, "LOD", 0xBF5FFF },
+        { OBD_PID_COOLANT_TEMP, "CLT", 0x00E5CC },
+#endif
     };
     const size_t hud_num_pids = LENGTH(rendered_pids);
     const size_t num_plotted  = 5; /* First 5 are plotted into the chart */
