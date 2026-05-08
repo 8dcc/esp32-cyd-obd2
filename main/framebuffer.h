@@ -90,7 +90,7 @@ static inline void framebuffer_set_pixel(const Framebuffer* fb,
                                          size_t x,
                                          size_t y,
                                          uint32_t color) {
-    if (x < 0 || x >= fb->width || y < 0 || y >= fb->height)
+    if (x >= fb->width || y >= fb->height)
         return;
     fb->data[fb->width * y + x] = rgb888_to_rgb565(color);
 }
