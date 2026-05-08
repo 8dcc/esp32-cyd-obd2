@@ -78,6 +78,44 @@ typedef struct RenderedPid {
 /*----------------------------------------------------------------------------*/
 
 /*
+ * Query each PID in 'rendered_pids' sequentially, storing the decoded result
+ * into the corresponding slot of 'obd_values'. Both arrays have 'num_pids'
+ * elements.
+ */
+static void fetch_pid_values(Elm327Ctx* elm_ctx,
+                             const RenderedPid* rendered_pids,
+                             float* obd_values,
+                             size_t num_pids) {
+    uint8_t buf[64];
+
+    for (size_t i = 0; i < num_pids; i++) {
+        vTaskDelay(pdMS_TO_TICKS(FETCH_DELAY_MS));
+
+        const EObdPid pid    = rendered_pids[i].pid;
+        const char* pid_name = obd_pid_name(pid);
+
+        const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
+        if (req_len == 0) {
+            LOGE("Failed to build OBD2 request for PID '%s'.", pid_name);
+            continue;
+        }
+        elm327_write(elm_ctx, buf, req_len);
+
+        const size_t resp_len =
+          elm327_read_response(elm_ctx, buf, sizeof(buf), 5000);
+        if (resp_len == 0) {
+            LOGW("No BT response received for PID '%s'.", pid_name);
+            continue;
+        }
+
+        if (!obd_decode_response(pid, buf, resp_len, &obd_values[i])) {
+            LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
+            HEXDUMP(buf, resp_len);
+        }
+    }
+}
+
+/*
  * Render each value from 'values' centered in its own cell, using the label
  * from the corresponding 'rendered_pids' entry. Both arrays have 'num_values'
  * elements.
@@ -195,8 +233,6 @@ void app_main(void) {
     for (size_t i = 0; i < hud_num_pids; i++)
         obd_values[i] = 0.f;
 
-    uint8_t buf[64];
-
     for (;;) {
         if (!serial_bt_is_connected()) {
             LOGI("Attempting bluetooth connection...");
@@ -214,35 +250,8 @@ void app_main(void) {
             LOGI("ELM327 setup complete.");
         }
 
-        for (size_t i = 0; i < hud_num_pids; i++) {
-            vTaskDelay(pdMS_TO_TICKS(FETCH_DELAY_MS));
-
-            const EObdPid pid    = rendered_pids[i].pid;
-            const char* pid_name = obd_pid_name(pid);
-
-            /* Build OBD PID request, and send to adapter */
-            const size_t req_len = obd_build_request(pid, buf, sizeof(buf));
-            if (req_len == 0) {
-                LOGE("Failed to build OBD2 request for PID '%s'.", pid_name);
-                continue;
-            }
-            elm327_write(&elm_ctx, buf, req_len);
-
-            /* Read the response from the adapter, with a timeout */
-            const size_t resp_len =
-              elm327_read_response(&elm_ctx, buf, sizeof(buf), 5000);
-            if (resp_len == 0) {
-                LOGW("No BT response received for PID '%s'.", pid_name);
-                continue;
-            }
-
-            /* Decode the received response */
-            if (!obd_decode_response(pid, buf, resp_len, &obd_values[i])) {
-                LOGW("Failed to decode OBD2 response for PID '%s':", pid_name);
-                HEXDUMP(buf, resp_len);
-                continue;
-            }
-        }
+        /* Read each PID value from 'rendered_pids' into 'obd_values' */
+        fetch_pid_values(&elm_ctx, rendered_pids, obd_values, hud_num_pids);
 
         /* Draw the HUD on top (numeric values) */
         draw_value_hud(&hud_fb, rendered_pids, obd_values, hud_num_pids);
