@@ -71,6 +71,22 @@ graph TD
   draw_text -->|framebuffer| render
 #+end_src
 
+The following flowchart shows the high-level runtime flow of the firmware.
+
+#+begin_src mermaid
+flowchart TD
+    A([Boot]) --> B[Init display, framebuffer and chart]
+    B --> C[Init Bluetooth and ELM327]
+    C --> D{BT connected?}
+    D -- No --> E[Connect to OBD2 adapter]
+    E --> F[Setup ELM327]
+    F --> D
+    D -- Yes --> G[Fetch OBD2 PID values]
+    G --> H[Draw HUD with numeric values]
+    H --> I[Update and render chart]
+    I --> D
+#+end_src
+
 * Simulating a bluetooth ELM327 device
 
 This repository ships with an ELM327 emulator script, which can be used to test
