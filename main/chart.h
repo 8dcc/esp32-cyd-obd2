@@ -19,7 +19,33 @@
 #ifndef CHART_H_
 #define CHART_H_ 1
 
+#include <float.h>
+
 #include "render.h"
+
+/*
+ * Value representing an undefined soft limit for a chart channel.
+ */
+#if defined(NAN)
+#define CHART_LIMIT_UNDEFINED NAN
+#else /* not defined(NAN) */
+#define CHART_LIMIT_UNDEFINED FLT_MAX
+#endif /* not defined(NAN) */
+
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Structure representing the soft minimum and maximum limits for a chart
+ * channel. The plotted axis of a channel is widened to always include its
+ * 'soft_min' and 'soft_max', but expands further if the channel's data exceeds
+ * either bound.
+ *
+ * Use 'CHART_LIMIT_UNDEFINED' to disable any of the limits.
+ */
+typedef struct ChartChannelLimits {
+    float soft_min;
+    float soft_max;
+} ChartChannelLimits;
 
 /*
  * Structure representing the state of a single chart channel.
@@ -30,6 +56,9 @@ typedef struct ChartChannel {
 
     /* RGB888 color for rendering */
     uint32_t color;
+
+    /* Minimum and maximum soft-limits for auto-scaling */
+    ChartChannelLimits limits;
 } ChartChannel;
 
 /*
@@ -61,6 +90,10 @@ typedef struct ChartCtx {
  * Initialize the specified responsive chart context, allocating the necessary
  * data for a chart of the specified number of channels.
  *
+ * If 'channel_limits' is not NULL, it must point to an array of
+ * 'num_channels' limit structures, which are copied into the channels. Pass
+ * NULL for fully dynamic auto-scaling.
+ *
  * The specified display dimensions will be used to determine the chart history
  * size and the framebuffer dimensions, since this function assumes that the
  * system has enough memory for a full-scale framebuffer.
@@ -68,6 +101,7 @@ typedef struct ChartCtx {
 void chart_init(ChartCtx* ctx,
                 int num_channels,
                 const uint32_t* channel_colors,
+                const ChartChannelLimits* channel_limits,
                 int x,
                 int y,
                 int width,

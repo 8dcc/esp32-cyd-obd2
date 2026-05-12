@@ -73,6 +73,13 @@ typedef struct RenderedPid {
     EObdPid pid;
     const char* label;
     uint32_t color;
+
+    /*
+     * Soft limits for the chart's per-channel auto-scaling. See definition of
+     * the 'ChartChannelLimits' structure for more information.
+     */
+    float soft_min;
+    float soft_max;
 } RenderedPid;
 
 /*----------------------------------------------------------------------------*/
@@ -170,19 +177,19 @@ void app_main(void) {
 
     static const RenderedPid rendered_pids[] = {
 #if 1 /* Pastel color palette */
-        { OBD_PID_RPM, "RPM", 0x70FF70 },
-        { OBD_PID_SPEED, "SPD", 0xFF7070 },
-        { OBD_PID_THROTTLE, "THR", 0xFFFF70 },
-        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x7070FF },
-        { OBD_PID_ENGINE_LOAD, "LOD", 0xFF70FF },
-        { OBD_PID_COOLANT_TEMP, "CLT", 0x70FFFF },
+        { OBD_PID_RPM,             "RPM", 0x70FF70, 700, 3000 },
+        { OBD_PID_SPEED,           "SPD", 0xFF7070, 0, 120 },
+        { OBD_PID_THROTTLE,        "THR", 0xFFFF70, 0, 100 },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x7070FF, 100, 250 },
+        { OBD_PID_ENGINE_LOAD,     "LOD", 0xFF70FF, 0, 100 },
+        { OBD_PID_COOLANT_TEMP,    "CLT", 0x70FFFF, 30, 100 },
 #else /* Neon color palette */
-        { OBD_PID_RPM, "RPM", 0x39FF14 },
-        { OBD_PID_SPEED, "SPD", 0xFF3C3C },
-        { OBD_PID_THROTTLE, "THR", 0xFFD700 },
-        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x5B9EFF },
-        { OBD_PID_ENGINE_LOAD, "LOD", 0xBF5FFF },
-        { OBD_PID_COOLANT_TEMP, "CLT", 0x00E5CC },
+        { OBD_PID_RPM,             "RPM", 0x39FF14, 700, 3000 },
+        { OBD_PID_SPEED,           "SPD", 0xFF3C3C, 0, 120 },
+        { OBD_PID_THROTTLE,        "THR", 0xFFD700, 0, 100 },
+        { OBD_PID_INTAKE_PRESSURE, "MAP", 0x5B9EFF, 100, 250 },
+        { OBD_PID_ENGINE_LOAD,     "LOD", 0xBF5FFF, 0, 100 },
+        { OBD_PID_COOLANT_TEMP,    "CLT", 0x00E5CC, 30, 100 },
 #endif
     };
     const size_t hud_num_pids = LENGTH(rendered_pids);
@@ -199,16 +206,21 @@ void app_main(void) {
     framebuffer_init(&hud_fb, LCD_WIDTH, HUD_HEIGHT);
     LOGI("HUD framebuffer initialized.");
 
-    /* Copy chart colors into separate array for the chart initialization */
+    /* Copy chart colors and soft limits into separate arrays */
     uint32_t chart_colors[num_plotted];
-    for (size_t i = 0; i < num_plotted; i++)
-        chart_colors[i] = rendered_pids[i].color;
+    ChartChannelLimits chart_limits[num_plotted];
+    for (size_t i = 0; i < num_plotted; i++) {
+        chart_colors[i]          = rendered_pids[i].color;
+        chart_limits[i].soft_min = rendered_pids[i].soft_min;
+        chart_limits[i].soft_max = rendered_pids[i].soft_max;
+    }
 
     /* Initialize chart context for the graph */
     ChartCtx chart_ctx;
     chart_init(&chart_ctx,
                num_plotted,
                chart_colors,
+               chart_limits,
                0,
                HUD_HEIGHT + CHART_PADDING,
                LCD_WIDTH,

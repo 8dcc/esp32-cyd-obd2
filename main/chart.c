@@ -57,6 +57,7 @@ static void chart_get_minmax(const ChartChannel* ch,
 void chart_init(ChartCtx* chart_ctx,
                 int num_channels,
                 const uint32_t* channel_colors,
+                const ChartChannelLimits* channel_limits,
                 int x,
                 int y,
                 int width,
@@ -95,6 +96,12 @@ void chart_init(ChartCtx* chart_ctx,
             ch->data[j] = 0.f;
 
         ch->color = channel_colors[i];
+        if (channel_limits != NULL) {
+            ch->limits = channel_limits[i];
+        } else {
+            ch->limits.soft_min = CHART_LIMIT_UNDEFINED;
+            ch->limits.soft_max = CHART_LIMIT_UNDEFINED;
+        }
     }
 
     /*
@@ -154,6 +161,17 @@ void chart_render(const ChartCtx* chart_ctx, const RenderCtx* render_ctx) {
                          chart_ctx->history_size,
                          &min_value,
                          &max_value);
+
+        /*
+         * Widen the axis range to always include the channel's soft limits.
+         * The axis still expands further when data exceeds either bound.
+         */
+        if (cur_channel->limits.soft_min != CHART_LIMIT_UNDEFINED &&
+            min_value > cur_channel->limits.soft_min)
+            min_value = cur_channel->limits.soft_min;
+        if (cur_channel->limits.soft_max != CHART_LIMIT_UNDEFINED &&
+            max_value < cur_channel->limits.soft_max)
+            max_value = cur_channel->limits.soft_max;
 
         /* Prevent division by zero if all values in channel are identical */
         if (min_value == max_value) {
