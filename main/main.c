@@ -43,8 +43,15 @@
 
 /*
  * Delay in miliseconds for fetching PID data from the OBD2 adapter.
+ * Only used in the single-PID fetch path (OBD_MULTI_PID == 0).
  */
 #define FETCH_DELAY_MS 10
+
+/*
+ * When defined, all PIDs are fetched in a single ELM327 request instead of
+ * one request per PID. Requires a CAN-based vehicle protocol (ISO 15765-4).
+ */
+#define OBD_MULTI_PID 0
 
 /*
  * Height of the OBD2 HUD row at the top of the screen.
@@ -85,14 +92,13 @@ typedef struct RenderedPid {
 /*----------------------------------------------------------------------------*/
 
 /*
- * Query each PID in 'rendered_pids' sequentially, storing the decoded result
- * into the corresponding slot of 'obd_values'. Both arrays have 'num_pids'
- * elements.
+ * Send one OBD2 request per PID and decode each response individually,
+ * storing results into 'obd_values'. Both arrays have 'num_pids' elements.
  */
-static void fetch_pid_values(Elm327Ctx* elm_ctx,
-                             const RenderedPid* rendered_pids,
-                             float* obd_values,
-                             size_t num_pids) {
+static void fetch_pid_values_single(Elm327Ctx* elm_ctx,
+                                    const RenderedPid* rendered_pids,
+                                    float* obd_values,
+                                    size_t num_pids) {
     uint8_t buf[64];
 
     for (size_t i = 0; i < num_pids; i++) {
@@ -120,6 +126,42 @@ static void fetch_pid_values(Elm327Ctx* elm_ctx,
             HEXDUMP(buf, resp_len);
         }
     }
+}
+
+/*
+ * Send all PIDs in a single ELM327 request and decode the combined response,
+ * storing results into 'obd_values'. Both arrays have 'num_pids' elements.
+ * Requires a CAN-based vehicle protocol (ISO 15765-4).
+ */
+static void fetch_pid_values_multi(Elm327Ctx* elm_ctx,
+                                   const RenderedPid* rendered_pids,
+                                   float* obd_values,
+                                   size_t num_pids) {
+    uint8_t buf[128];
+
+    EObdPid pids[num_pids];
+    for (size_t i = 0; i < num_pids; i++)
+        pids[i] = rendered_pids[i].pid;
+
+    const size_t req_len =
+      obd_build_multi_request(pids, num_pids, buf, sizeof(buf));
+    if (req_len == 0) {
+        LOGE("Failed to build multi-PID OBD2 request.");
+        return;
+    }
+    elm327_write(elm_ctx, buf, req_len);
+
+    const size_t resp_len =
+      elm327_read_response(elm_ctx, buf, sizeof(buf), 5000);
+    if (resp_len == 0) {
+        LOGW("No BT response received for multi-PID request.");
+        return;
+    }
+
+    const size_t decoded =
+      obd_decode_multi_response(pids, num_pids, buf, resp_len, obd_values);
+    if (decoded < num_pids)
+        LOGW("Multi-PID response: decoded %d of %d PIDs.", decoded, num_pids);
 }
 
 /*
@@ -263,7 +305,13 @@ void app_main(void) {
         }
 
         /* Read each PID value from 'rendered_pids' into 'obd_values' */
-        fetch_pid_values(&elm_ctx, rendered_pids, obd_values, hud_num_pids);
+#if OBD_MULTI_PID
+        fetch_pid_values_multi(&elm_ctx, rendered_pids, obd_values,
+                               hud_num_pids);
+#else
+        fetch_pid_values_single(&elm_ctx, rendered_pids, obd_values,
+                                hud_num_pids);
+#endif
 
         /* Draw the HUD on top (numeric values) */
         draw_value_hud(&hud_fb, rendered_pids, obd_values, hud_num_pids);
